@@ -11,20 +11,9 @@ object AncsConstants {
     // ANCS Service UUID
     val ANCS_SERVICE_UUID: UUID = UUID.fromString("7905F431-B5CE-4E99-A40F-4B1E122D00D0")
 
-    // iOS Companion App Service UUID (advertised by the WearBridge iOS app)
+    // Legacy WearBridge iOS companion service UUID — only used by the old scanner
+    // until advertising-based pairing replaces it. TODO: remove with BleScanner.scanForCompanion
     val COMPANION_SERVICE_UUID: UUID = UUID.fromString("A0E3D5B1-4C6F-4E8A-9B2D-7F1E3A5C8D0B")
-
-    // Quick Reply Characteristic UUID (writable — sends reply text to iPhone)
-    val QUICK_REPLY_CHARACTERISTIC_UUID: UUID = UUID.fromString("A0E3D5B3-4C6F-4E8A-9B2D-7F1E3A5C8D0B")
-
-    // Call State Characteristic UUID (readable, notifiable — iPhone pushes call state to watch)
-    val CALL_STATE_CHARACTERISTIC_UUID: UUID = UUID.fromString("A0E3D5B4-4C6F-4E8A-9B2D-7F1E3A5C8D0B")
-
-    // Call state values (matches iOS BLEConstants)
-    const val CALL_STATE_IDLE: Byte = 0x00
-    const val CALL_STATE_RINGING: Byte = 0x01
-    const val CALL_STATE_ACTIVE: Byte = 0x02
-    const val CALL_STATE_ENDED: Byte = 0x03
 
     // ANCS Characteristic UUIDs
     val NOTIFICATION_SOURCE_UUID: UUID = UUID.fromString("9FBF120D-6301-42D9-8C58-25E699A21DBD")

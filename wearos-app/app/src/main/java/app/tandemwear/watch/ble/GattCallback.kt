@@ -22,8 +22,7 @@ class GattCallback(
     private val onDescriptorWritten: (BluetoothGattDescriptor, Int) -> Unit,
     private val onCharacteristicWritten: (BluetoothGattCharacteristic, Int) -> Unit,
     private val onMtuChanged: (Int, Int) -> Unit,
-    private val onCharacteristicReadCallback: ((BluetoothGattCharacteristic, ByteArray) -> Unit)? = null,
-    private val onCallStateChanged: ((ByteArray) -> Unit)? = null
+    private val onCharacteristicReadCallback: ((BluetoothGattCharacteristic, ByteArray) -> Unit)? = null
 ) : BluetoothGattCallback() {
 
     companion object {
@@ -80,10 +79,6 @@ class GattCallback(
             AncsConstants.DATA_SOURCE_UUID.toString().uppercase() -> {
                 Log.d(TAG, "Data Source: ${data.size} bytes")
                 onDataSourceChanged(data)
-            }
-            AncsConstants.CALL_STATE_CHARACTERISTIC_UUID.toString().uppercase() -> {
-                Log.d(TAG, "Call State: ${data.toHexString()}")
-                onCallStateChanged?.invoke(data)
             }
             else -> {
                 Log.d(TAG, "Unknown characteristic changed: $uuid")

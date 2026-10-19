@@ -29,14 +29,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
-import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
-import androidx.wear.compose.material3.FilledTonalButton
 import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.Text
 import app.tandemwear.watch.R
@@ -47,7 +43,7 @@ import app.tandemwear.watch.ui.theme.TandemWearTheme
 
 /**
  * Full-screen incoming call activity shown when ANCS reports an incoming call.
- * Shows caller name with Answer/Decline/Quick Reply buttons using Lucide icons.
+ * Shows caller name with Answer/Decline buttons using Lucide icons.
  * Auto-dismisses when ANCS sends a REMOVE event for the call notification.
  */
 class IncomingCallActivity : ComponentActivity() {
@@ -64,18 +60,9 @@ class IncomingCallActivity : ComponentActivity() {
         private const val AUTO_DISMISS_TIMEOUT_MS = 45_000L
         /** After call is answered on iPhone, auto-dismiss after this many ms */
         private const val ACTIVE_CALL_DISMISS_MS = 5_000L
-
-        val QUICK_REPLIES = listOf(
-            "Can't talk right now.",
-            "Hey! Can't talk rn, what's up?",
-            "I'll call you back shortly.",
-            "In a meeting, will call later.",
-            "Driving right now, will call later."
-        )
     }
 
     private var notificationUid: Long = -1
-    private var showingReplies = mutableStateOf(false)
     private var callerNameState = mutableStateOf("Unknown Caller")
     /** true = call was answered on iPhone, show "Active on iPhone" UI */
     private var callAnsweredOnPhone = mutableStateOf(false)
@@ -131,7 +118,6 @@ class IncomingCallActivity : ComponentActivity() {
 
         setContent {
             TandemWearTheme {
-                val showReplies by showingReplies
                 val callerName by callerNameState
                 val answeredOnPhone by callAnsweredOnPhone
 
@@ -139,17 +125,6 @@ class IncomingCallActivity : ComponentActivity() {
                     CallActiveOnPhoneScreen(
                         callerName = callerName,
                         onDismiss = { finish() }
-                    )
-                } else if (showReplies) {
-                    QuickReplyScreen(
-                        callerName = callerName,
-                        replies = QUICK_REPLIES,
-                        onReplySelected = { reply ->
-                            declineWithMessage(reply)
-                        },
-                        onBack = {
-                            showingReplies.value = false
-                        }
                     )
                 } else {
                     IncomingCallScreen(
@@ -162,9 +137,6 @@ class IncomingCallActivity : ComponentActivity() {
                         onDecline = {
                             performAction(AncsConstants.ACTION_NEGATIVE)
                             finish()
-                        },
-                        onQuickReply = {
-                            showingReplies.value = true
                         }
                     )
                 }
@@ -189,20 +161,6 @@ class IncomingCallActivity : ComponentActivity() {
         }
         startService(intent)
     }
-
-    private fun declineWithMessage(message: String) {
-        performAction(AncsConstants.ACTION_NEGATIVE)
-
-        val intent = Intent(this, AncsService::class.java).apply {
-            action = AncsService.ACTION_SEND_QUICK_REPLY
-            putExtra(AncsService.EXTRA_QUICK_REPLY_TEXT, message)
-            putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_UID, notificationUid)
-            putExtra("caller_name", callerNameState.value)
-        }
-        startService(intent)
-
-        finish()
-    }
 }
 
 @Composable
@@ -210,8 +168,7 @@ fun IncomingCallScreen(
     callerName: String,
     appName: String,
     onAnswer: () -> Unit,
-    onDecline: () -> Unit,
-    onQuickReply: () -> Unit
+    onDecline: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -248,7 +205,7 @@ fun IncomingCallScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Answer / Quick Reply / Decline row
+        // Decline / Answer row
         Row(
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxWidth(),
@@ -271,26 +228,7 @@ fun IncomingCallScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Quick reply button (blue) — Lucide message-circle
-            Button(
-                onClick = onQuickReply,
-                modifier = Modifier.size(44.dp),
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF3B82F6)
-                )
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_chat_reply),
-                    contentDescription = "Quick Reply",
-                    modifier = Modifier.size(20.dp),
-                    tint = Color.White
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(24.dp))
 
             // Answer button (green) — Lucide phone
             Button(
@@ -307,69 +245,6 @@ fun IncomingCallScreen(
                     modifier = Modifier.size(22.dp),
                     tint = Color.White
                 )
-            }
-        }
-    }
-}
-
-@Composable
-fun QuickReplyScreen(
-    callerName: String,
-    replies: List<String>,
-    onReplySelected: (String) -> Unit,
-    onBack: () -> Unit
-) {
-    ScalingLazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        item {
-            Text(
-                text = "Decline & Reply",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                color = Color.White
-            )
-        }
-
-        item {
-            Text(
-                text = callerName,
-                fontSize = 12.sp,
-                color = Color.Gray,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        items(replies) { reply ->
-            FilledTonalButton(
-                onClick = { onReplySelected(reply) },
-                modifier = Modifier.fillMaxWidth(0.95f)
-            ) {
-                Text(
-                    text = reply,
-                    fontSize = 13.sp,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1
-                )
-            }
-        }
-
-        item {
-            Button(
-                onClick = onBack,
-                modifier = Modifier.fillMaxWidth(0.7f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF374151)
-                )
-            ) {
-                Text("Back", fontSize = 13.sp)
             }
         }
     }

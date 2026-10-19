@@ -50,9 +50,6 @@ class BleConnectionManager(private val context: Context) {
     private val _dataSourceEvents = MutableSharedFlow<ByteArray>(extraBufferCapacity = 64)
     val dataSourceEvents: SharedFlow<ByteArray> = _dataSourceEvents.asSharedFlow()
 
-    private val _callStateEvents = MutableSharedFlow<ByteArray>(extraBufferCapacity = 16)
-    val callStateEvents: SharedFlow<ByteArray> = _callStateEvents.asSharedFlow()
-
     private var gatt: BluetoothGatt? = null
     private var targetDevice: BluetoothDevice? = null
     private var reconnectJob: Job? = null
@@ -147,10 +144,9 @@ class BleConnectionManager(private val context: Context) {
             Log.i(TAG, "ANCS service found!")
             serviceDiscoveryRetries = 0
 
-            // If already subscribed (rediscovery for companion service), just read companion
+            // Already subscribed (e.g. rediscovery) — don't reset the ANCS session
             if (notificationSourceChar != null && dataSourceChar != null) {
-                Log.i(TAG, "ANCS already subscribed, checking companion service")
-                readCompanionStatus()
+                Log.i(TAG, "ANCS already subscribed, ignoring rediscovery")
                 return@GattCallback
             }
 
@@ -194,13 +190,6 @@ class BleConnectionManager(private val context: Context) {
                     _connectionState.value = ConnectionState.Connected(deviceName)
                     // Read the real iPhone name from GAP service
                     readGapDeviceName()
-                    // Read companion status to notify iPhone app
-                    readCompanionStatus()
-                    // Subscribe to call state from companion app (if available)
-                    scope.launch {
-                        delay(500) // Small delay to avoid GATT queue congestion
-                        subscribeToCallState()
-                    }
                 }
             }
 
@@ -219,9 +208,6 @@ class BleConnectionManager(private val context: Context) {
         },
         onCharacteristicReadCallback = { characteristic, value ->
             onCharacteristicRead(characteristic.uuid, value)
-        },
-        onCallStateChanged = { data ->
-            _callStateEvents.tryEmit(data)
         }
     )
 
@@ -359,70 +345,6 @@ class BleConnectionManager(private val context: Context) {
 
     /** Callback to notify the UI when the real device name is resolved */
     var onDeviceNameResolved: ((String) -> Unit)? = null
-
-    /**
-     * Read the companion app's status characteristic to notify the iPhone app
-     * that the watch has connected. This triggers didReceiveRead on the iOS side.
-     */
-    private fun readCompanionStatus() {
-        val gatt = this.gatt ?: return
-        val companionServiceUuid = java.util.UUID.fromString("A0E3D5B1-4C6F-4E8A-9B2D-7F1E3A5C8D0B")
-        val statusCharUuid = java.util.UUID.fromString("A0E3D5B2-4C6F-4E8A-9B2D-7F1E3A5C8D0B")
-        val service = gatt.getService(companionServiceUuid)
-        if (service != null) {
-            val char = service.getCharacteristic(statusCharUuid)
-            if (char != null) {
-                gatt.readCharacteristic(char)
-                Log.i(TAG, "Reading companion status characteristic to notify iPhone app")
-            } else {
-                Log.d(TAG, "Companion status characteristic not found")
-            }
-        } else {
-            Log.d(TAG, "Companion service not found — iPhone companion app may not be running")
-        }
-    }
-
-    /**
-     * Subscribe to the call state characteristic from the iOS companion app.
-     * When enabled, the companion pushes real-time call state (ringing/active/ended).
-     */
-    fun subscribeToCallState() {
-        val gatt = this.gatt ?: return
-        val service = gatt.getService(AncsConstants.COMPANION_SERVICE_UUID) ?: run {
-            Log.d(TAG, "subscribeToCallState: companion service not found")
-            return
-        }
-        val char = service.getCharacteristic(AncsConstants.CALL_STATE_CHARACTERISTIC_UUID) ?: run {
-            Log.d(TAG, "subscribeToCallState: call state characteristic not found")
-            return
-        }
-        subscribeToCharacteristic(char)
-        Log.i(TAG, "Subscribing to call state characteristic")
-    }
-
-    /**
-     * Write quick reply payload to the iPhone companion app via BLE.
-     * Format: "callerName|replyMessage"
-     */
-    fun writeQuickReply(payload: String) {
-        val gatt = this.gatt ?: run {
-            Log.e(TAG, "writeQuickReply: no GATT connection")
-            return
-        }
-        val service = gatt.getService(AncsConstants.COMPANION_SERVICE_UUID) ?: run {
-            Log.e(TAG, "writeQuickReply: companion service not found")
-            return
-        }
-        val char = service.getCharacteristic(AncsConstants.QUICK_REPLY_CHARACTERISTIC_UUID) ?: run {
-            Log.e(TAG, "writeQuickReply: quick reply characteristic not found")
-            return
-        }
-        val data = payload.toByteArray(Charsets.UTF_8)
-        char.value = data
-        char.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-        val success = gatt.writeCharacteristic(char)
-        Log.i(TAG, "writeQuickReply: wrote ${data.size} bytes, success=$success")
-    }
 
     fun disconnect() {
         autoReconnect = false
