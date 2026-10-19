@@ -24,7 +24,7 @@ class BondStateReceiver(
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != BluetoothDevice.ACTION_BOND_STATE_CHANGED) return
 
-        val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+        val device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
             ?: return
         val bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE)
         val prevState = intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, BluetoothDevice.BOND_NONE)

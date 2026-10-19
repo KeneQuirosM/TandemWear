@@ -39,6 +39,11 @@ android {
     buildFeatures {
         compose = true
     }
+
+    testOptions {
+        // android.jar stubs throw "Method ... not mocked" (e.g. android.util.Log) in local tests
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 dependencies {
