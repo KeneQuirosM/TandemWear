@@ -171,6 +171,90 @@ class DataSourceAssemblerTest {
         assertEquals(2L, notification!!.uid)
     }
 
+    @Test
+    fun `every fragment boundary yields the same result`() {
+        val attrs = listOf(
+            AncsConstants.ATTR_APP_IDENTIFIER,
+            AncsConstants.ATTR_TITLE,
+            AncsConstants.ATTR_SUBTITLE,
+            AncsConstants.ATTR_MESSAGE,
+            AncsConstants.ATTR_DATE
+        )
+        val response = buildResponse(
+            0, 0xDEADBEEF,
+            listOf(0 to "net.whatsapp.WhatsApp", 1 to "Mamá", 2 to "", 3 to "¿Vienes hoy? 😀", 5 to "20261019T101500")
+        )
+        for (split in 1 until response.size) {
+            assembler.expectNotificationAttributes(0xDEADBEEF, attrs, 4, 0)
+            assertNull("split=$split", assembler.onDataReceived(response.copyOfRange(0, split)))
+            val n = assembler.onDataReceived(response.copyOfRange(split, response.size))
+            assertNotNull("split=$split", n)
+            assertEquals("Mamá", n!!.title)
+            assertEquals("¿Vienes hoy? 😀", n.message)
+            assertEquals("20261019T101500", n.date)
+            assertEquals(0xDEADBEEFL, n.uid)
+        }
+    }
+
+    @Test
+    fun `byte by byte feed completes exactly at the last byte`() {
+        val attrs = listOf(AncsConstants.ATTR_APP_IDENTIFIER, AncsConstants.ATTR_TITLE)
+        assembler.expectNotificationAttributes(7, attrs, 0, 0)
+        val response = buildResponse(0, 7, listOf(0 to "com.apple.MobileSMS", 1 to "Ana"))
+        for (i in 0 until response.size - 1) {
+            assertNull(assembler.onDataReceived(byteArrayOf(response[i])))
+        }
+        assertEquals("Ana", assembler.onDataReceived(byteArrayOf(response.last()))!!.title)
+    }
+
+    @Test
+    fun `data with no pending request is dropped`() {
+        val stray = buildResponse(0, 7, listOf(1 to "Bob"))
+        assertNull(assembler.onDataReceived(stray))
+        assertNull(assembler.pendingUid)
+    }
+
+    @Test
+    fun `response for another uid is dropped and the real one still parses`() {
+        val attrs = listOf(AncsConstants.ATTR_TITLE)
+        assembler.expectNotificationAttributes(1, attrs, 0, 0)
+
+        assertNull(assembler.onDataReceived(buildResponse(0, 2, listOf(1 to "Wrong"))))
+        assertEquals(1L, assembler.pendingUid)
+
+        val n = assembler.onDataReceived(buildResponse(0, 1, listOf(1 to "Right")))
+        assertEquals("Right", n!!.title)
+        assertNull(assembler.pendingUid)
+    }
+
+    @Test
+    fun `header split across fragments with wrong uid is dropped`() {
+        assembler.expectNotificationAttributes(1, listOf(AncsConstants.ATTR_TITLE), 0, 0)
+        val wrong = buildResponse(0, 2, listOf(1 to "Wrong"))
+        assertNull(assembler.onDataReceived(wrong.copyOfRange(0, 3)))
+        assertNull(assembler.onDataReceived(wrong.copyOfRange(3, wrong.size)))
+
+        val n = assembler.onDataReceived(buildResponse(0, 1, listOf(1 to "Right")))
+        assertEquals("Right", n!!.title)
+    }
+
+    @Test
+    fun `stale continuation fragment before the new response is dropped`() {
+        assembler.expectNotificationAttributes(5, listOf(AncsConstants.ATTR_TITLE), 0, 0)
+        // Tail of an older response (starts with attribute bytes, not a header)
+        assertNull(assembler.onDataReceived(byteArrayOf(0x03, 0x02, 0x00, 'h'.code.toByte(), 'i'.code.toByte())))
+        val n = assembler.onDataReceived(buildResponse(0, 5, listOf(1 to "Fresh")))
+        assertEquals("Fresh", n!!.title)
+    }
+
+    @Test
+    fun `completed response clears pending state`() {
+        assembler.expectNotificationAttributes(3, listOf(AncsConstants.ATTR_TITLE), 0, 0)
+        assertNotNull(assembler.onDataReceived(buildResponse(0, 3, listOf(1 to "x"))))
+        // A duplicate delivery must not produce a second notification
+        assertNull(assembler.onDataReceived(buildResponse(0, 3, listOf(1 to "x"))))
+    }
+
     // Helper to build a raw ANCS Data Source response
     private fun buildResponse(
         commandId: Int,
