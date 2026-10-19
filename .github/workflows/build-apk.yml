@@ -33,6 +33,9 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # The action's default list includes the removed 'tools' package
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
 
       - name: Set up Gradle (with cache)
         uses: gradle/actions/setup-gradle@v4
