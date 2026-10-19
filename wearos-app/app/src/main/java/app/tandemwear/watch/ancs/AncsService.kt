@@ -22,6 +22,7 @@ import app.tandemwear.watch.model.AncsNotification
 import app.tandemwear.watch.model.ConnectionState
 import app.tandemwear.watch.ui.IncomingCallActivity
 import app.tandemwear.watch.ui.MainActivity
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -33,6 +34,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Foreground service that manages the BLE connection to iPhone and ANCS notification pipeline.
@@ -59,6 +61,8 @@ class AncsService : Service() {
         const val EXTRA_ACTION_ID = "action_id"
         const val NOTIFICATION_ID_CALL = 999
         private const val MAX_ACTIVE_NOTIFICATIONS = 20 // Android limit is 25; keep headroom
+        // Max wait for a full Data Source response before moving to the next request
+        private const val ATTRIBUTE_RESPONSE_TIMEOUT_MS = 3_000L
 
         /** Shared connection state observable by the ViewModel */
         private val _sharedConnectionState = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
@@ -88,6 +92,9 @@ class AncsService : Service() {
     // Serial queue for Control Point requests
     private val attributeRequestQueue = Channel<AttributeRequest>(Channel.BUFFERED)
     private var requestProcessorJob: Job? = null
+
+    // Completed by handleDataSourceEvent when the in-flight request's response is assembled
+    private var pendingAttributeResponse: CompletableDeferred<Unit>? = null
 
     private data class AttributeRequest(
         val event: AncsEvent,
@@ -316,7 +323,8 @@ class AncsService : Service() {
     private fun handleDataSourceEvent(data: ByteArray) {
         val notification = dataSourceAssembler.onDataReceived(data)
         if (notification != null) {
-            Log.i(TAG, "Notification complete: ${notification.title} - ${notification.message}")
+            Log.i(TAG, "Notification complete: uid=${notification.uid}")
+            pendingAttributeResponse?.complete(Unit)
             scope.launch {
                 postNotification(notification)
             }
@@ -349,15 +357,23 @@ class AncsService : Service() {
             hasNegativeAction = event.hasNegativeAction
         )
 
-        val success = connectionManager.writeControlPoint(cpData)
-        if (!success) {
-            Log.e(TAG, "Failed to write Control Point for uid=${event.notificationUid}")
-            dataSourceAssembler.reset()
+        val response = CompletableDeferred<Unit>()
+        pendingAttributeResponse = response
+        try {
+            if (!connectionManager.writeControlPoint(cpData)) {
+                Log.e(TAG, "Failed to write Control Point for uid=${event.notificationUid}")
+                dataSourceAssembler.reset()
+                return
+            }
+            // The response arrives via dataSourceEvents -> handleDataSourceEvent. Wait for it
+            // so the next request can't reset the assembler mid-response.
+            if (withTimeoutOrNull(ATTRIBUTE_RESPONSE_TIMEOUT_MS) { response.await() } == null) {
+                Log.w(TAG, "Timed out waiting for attributes of uid=${event.notificationUid}")
+                dataSourceAssembler.reset()
+            }
+        } finally {
+            pendingAttributeResponse = null
         }
-
-        // The response will come asynchronously via dataSourceEvents -> handleDataSourceEvent
-        // We add a small delay before processing the next request to allow the DS response to complete
-        kotlinx.coroutines.delay(500)
     }
 
     private suspend fun postNotification(notification: AncsNotification) {
@@ -604,7 +620,11 @@ class AncsService : Service() {
 
     private fun performNotificationAction(uid: Long, actionId: Int) {
         val data = ControlPointWriter.buildPerformNotificationAction(uid, actionId)
-        connectionManager.writeControlPoint(data)
+        scope.launch {
+            if (!connectionManager.writeControlPoint(data)) {
+                Log.e(TAG, "Failed to perform action $actionId on uid=$uid")
+            }
+        }
         // Cancel vibration (in case this is a call answer/decline)
         vibrator.cancel()
         // Cancel the Android notification and remove from tracking

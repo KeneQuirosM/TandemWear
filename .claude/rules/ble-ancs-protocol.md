@@ -12,9 +12,11 @@
 
 ## BLE Connection Flow
 
-1. Watch scans → finds iPhone (or uses bonded device)
+1. Watch scans → finds iPhone (or uses bonded device) — being replaced by advertising + pairing from iPhone Settings (see docs/EXPERIMENTO_ANUNCIO_BLE.md)
 2. `connectGatt()` → `onConnectionStateChange(CONNECTED)`
 3. `requestMtu(512)` → `onMtuChanged` → `discoverServices()`
+
+**Every GATT operation goes through `GattOperationQueue`** (one in flight, 5 s timeout). Never call `gatt.read/write/discover/requestMtu` directly. `BleConnectionManager` state lives on a single-threaded dispatcher; GATT callbacks hop onto it. Control Point attribute requests wait for the full Data Source response (or 3 s timeout) before the next one.
 4. ANCS not visible (not bonded) → `createBond()` → iOS pairing dialog
 5. `BOND_BONDED` → `discoverServices()` again → ANCS visible
 6. Subscribe DS CCCD → Subscribe NS CCCD → session active (guard against double subscription)
@@ -49,31 +51,15 @@ Current channels: `service` (LOW), `incoming_call`, `messages`, `email`, `social
 5. Answer/Decline sends ANCS action back to iPhone
 6. Fallback: CallStyle notification + direct `startActivity()` if Telecom rejects
 
-## Call State Dismissal (Three Layers)
+## Call State Dismissal
 
-When a call is answered on the iPhone, the watch overlay transitions from "Incoming Call" to "Active on iPhone" (auto-dismisses in 5s). Three detection layers:
+When a call is answered on the iPhone, the watch overlay transitions from "Incoming Call" to "Active on iPhone" (auto-dismisses in 5s). Detection:
 
-1. **Companion BLE** (opt-in): `CXCallObserver` → call state characteristic `A0E3D5B4-...` → watch subscribes for notifications. Toggle: Settings → Live Call Status.
-2. **ANCS MODIFIED**: NS event with EventID=1 for active call UID triggers overlay transition.
+1. **ANCS MODIFIED**: NS event with EventID=1 for active call UID triggers overlay transition.
+2. **ANCS REMOVED**: call ended.
 3. **Safety timeout**: 45-second auto-dismiss if no events arrive.
 
-## Companion Service Characteristics
-
-| Characteristic | UUID | Role |
-|---|---|---|
-| Connection Status | `A0E3D5B2-4C6F-4E8A-9B2D-7F1E3A5C8D0B` | Read/Notify — watch reads to signal connection |
-| Quick Reply | `A0E3D5B3-4C6F-4E8A-9B2D-7F1E3A5C8D0B` | Write — watch sends `"callerName\|replyText"` |
-| Call State | `A0E3D5B4-4C6F-4E8A-9B2D-7F1E3A5C8D0B` | Read/Notify — iPhone pushes call state (0x00=idle, 0x01=ringing, 0x02=active, 0x03=ended) |
-
-## Quick Reply Flow
-
-1. Watch: user taps quick reply → ANCS negative action + BLE write to quick reply characteristic
-2. iPhone: `PeripheralManager` receives write → opens `shortcuts://run-shortcut?name=WearBridge%20Reply`
-3. User creates iOS Shortcut "WearBridge Reply" to send SMS/iMessage with the input text
-
-## iPhone Companion App Watch Detection
-
-The iPhone can't detect ANCS connections (system-level). Instead, `CBCentralManager.retrieveConnectedPeripherals(withServices:)` probes for devices with standard BLE services (Device Info 0x180A, Battery 0x180F, etc.) and filters by known watch name patterns. Polls every 10 seconds.
+There is no iOS companion app: quick replies and companion call state were removed.
 
 ## App Icon Mapping
 
