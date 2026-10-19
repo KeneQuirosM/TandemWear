@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.wearos.ancsbridge"
+    namespace = "app.tandemwear.watch"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.wearos.ancsbridge"
+        applicationId = "app.tandemwear.watch"
         minSdk = 33 // Wear OS 4
         targetSdk = 35
         versionCode = 1

@@ -3,5 +3,5 @@
 -dontwarn androidx.room.paging.**
 
 # Keep ANCS model classes
--keep class com.wearos.ancsbridge.model.** { *; }
--keep class com.wearos.ancsbridge.data.** { *; }
+-keep class app.tandemwear.watch.model.** { *; }
+-keep class app.tandemwear.watch.data.** { *; }
