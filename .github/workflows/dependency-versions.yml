@@ -1,0 +1,62 @@
+name: Dependency versions
+
+# Prints the published versions of the libraries TandemWear uses, straight from
+# Google Maven / Maven Central metadata, so versions are never guessed.
+# Runs when this file changes, or manually.
+on:
+  push:
+    branches:
+      - claude/dazzling-heisenberg-ttxsvg
+    paths:
+      - .github/workflows/dependency-versions.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  versions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Query Maven metadata
+        run: |
+          google() {
+            local path="$1"
+            local xml
+            xml=$(curl -fsSL "https://dl.google.com/android/maven2/$path/maven-metadata.xml") || { echo "$path: NOT FOUND"; return; }
+            local all stable
+            all=$(echo "$xml" | grep -o '<version>[^<]*' | sed 's/<version>//')
+            stable=$(echo "$all" | grep -v -E 'alpha|beta|rc|dev' | tail -3 | tr '\n' ' ')
+            echo "$path: latest=$(echo "$all" | tail -1)  stable=[$stable]"
+          }
+          google androidx/wear/compose/compose-material3
+          google androidx/wear/compose/compose-foundation
+          google androidx/wear/compose/compose-navigation
+          google androidx/wear/compose/compose-ui-tooling
+          google androidx/wear/tiles/tiles
+          google androidx/wear/tiles/tiles-tooling-preview
+          google androidx/wear/protolayout/protolayout
+          google androidx/wear/protolayout/protolayout-material3
+          google androidx/wear/protolayout/protolayout-expression
+          google androidx/wear/watchface/watchface-complications-data-source-ktx
+          google androidx/wear/wear
+          google androidx/datastore/datastore-preferences
+          google androidx/concurrent/concurrent-futures
+          google androidx/compose/compose-bom
+          google androidx/activity/activity-compose
+          google androidx/room/room-runtime
+          google androidx/core/core-ktx
+          google androidx/lifecycle/lifecycle-runtime-compose
+          google com/android/tools/build/gradle
+          central() {
+            local path="$1"
+            local all
+            all=$(curl -fsSL "https://repo1.maven.org/maven2/$path/maven-metadata.xml" | grep -o '<version>[^<]*' | sed 's/<version>//') || { echo "$path: NOT FOUND"; return; }
+            echo "$path: stable=[$(echo "$all" | grep -v -E 'alpha|beta|rc|RC|SNAPSHOT' | tail -3 | tr '\n' ' ')]"
+          }
+          central io/github/takahirom/roborazzi/roborazzi
+          central io/github/takahirom/roborazzi/roborazzi-compose
+          central io/github/takahirom/roborazzi/roborazzi-junit-rule
+          central org/robolectric/robolectric
+          curl -fsSL https://plugins.gradle.org/m2/io/github/takahirom/roborazzi/io.github.takahirom.roborazzi.gradle.plugin/maven-metadata.xml | grep -o '<release>[^<]*' || echo "roborazzi plugin: not on plugin portal"

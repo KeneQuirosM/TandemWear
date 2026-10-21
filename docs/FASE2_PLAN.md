@@ -112,4 +112,6 @@ Al terminar entrego el resumen, los comandos y las pruebas manuales en el Galaxy
 | ProtoLayout | — | 1.4.2 (29-07-2026) | `protolayout-material3`: coordenadas por confirmar en Maven |
 | Complicaciones | — | watchface 1.3.0 (25-02-2026) | `watchface-complications-data-source-ktx` |
 
+**Decisión del 21-10:** subir Wear Compose/M3 a la versión estable con `compileSdk 36` en un commit aparte. **`targetSdk` se queda en 35** hasta que termine la prueba de larga duración del usuario. Si la subida falla dos veces en CI: volver a la versión alpha y hacer un selector de hora propio, con desplazamiento y sin teclado.
+
 **Riesgo:** subir a Wear Compose 1.7 arrastra Compose 1.9+ y probablemente exige `compileSdk 36`. Propongo hacerlo **en un commit aislado**, verificado en CI, antes del bloque A, junto con el cambio a `targetSdk 36` ya evaluado en `docs/ANDROID16_WEAROS6.md`.
