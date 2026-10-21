@@ -1,12 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Inicio -->
-    <string name="status_connected">Conectado</string>
     <string name="status_notifications_active">Notificaciones activas</string>
-    <string name="status_via_ancs">vía ANCS por Bluetooth</string>
     <string name="status_connecting_to">Conectando con %1$s…</string>
     <string name="status_pairing_with">Emparejando con %1$s…</string>
-    <string name="status_not_in_range">iPhone fuera de alcance</string>
     <string name="status_error_generic">No se pudo conectar</string>
     <string name="repair_title">Tu iPhone olvidó este reloj</string>
     <string name="repair_body">Empareja de nuevo. Si el reloj aún muestra el iPhone en sus ajustes de Bluetooth, desvincúlalo ahí primero.</string>
@@ -17,7 +14,6 @@
     <string name="action_reconnect">Reconectar</string>
     <string name="action_pair_iphone">Emparejar iPhone</string>
     <string name="action_try_again">Reintentar</string>
-    <string name="action_back">Atrás</string>
     <string name="action_dismiss">Cerrar</string>
 
     <!-- Emparejamiento -->
@@ -62,4 +58,27 @@
     <string name="channel_schedule_desc">Recordatorios, alarmas y temporizadores del iPhone</string>
     <string name="channel_other">Otras</string>
     <string name="channel_other_desc">Otras notificaciones</string>
+
+    <!-- Inicio (2.2) -->
+    <string name="home_connected_to">Conectado a %1$s</string>
+    <string name="home_reconnecting">Reconectando…</string>
+    <string name="home_disconnected">Desconectado</string>
+    <string name="home_disconnected_body">El iPhone está fuera de alcance o tiene el Bluetooth apagado. El reloj sigue intentándolo solo.</string>
+    <string name="home_error_detail">Último error: %1$s</string>
+    <string name="home_bluetooth_off">Bluetooth apagado</string>
+    <string name="home_bluetooth_off_body">Enciende el Bluetooth del reloj para recibir las notificaciones del iPhone.</string>
+    <string name="action_open_bluetooth">Ajustes de Bluetooth</string>
+    <string name="action_pair_again">Emparejar de nuevo</string>
+
+    <!-- Acerca de -->
+    <string name="about_title">Acerca de</string>
+    <string name="about_version">Versión %1$s</string>
+    <string name="about_description">Muestra en este reloj las notificaciones y llamadas de tu iPhone por Bluetooth (ANCS de Apple).</string>
+    <string name="about_based_on">Basado en WearBridge de Karthik Rajendran (licencia MIT).</string>
+    <string name="about_privacy">Gratis y local: sin cuenta, sin nube, ningún dato sale del reloj.</string>
+    <string name="about_licenses">Licencias</string>
+    <string name="license_tandemwear_title">TandemWear</string>
+    <string name="license_wearbridge_title">WearBridge (Karthik Rajendran)</string>
+    <string name="license_androidx_title">AndroidX, Jetpack Compose, Kotlin</string>
+    <string name="license_icons_title">Íconos: Material Symbols, Lucide</string>
 </resources>

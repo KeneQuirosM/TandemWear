@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
+import app.tandemwear.watch.ui.nav.TandemNavHost
 import app.tandemwear.watch.ui.theme.TandemWearTheme
 import app.tandemwear.watch.viewmodel.MainViewModel
 
@@ -30,7 +31,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             TandemWearTheme {
-                MainScreen(viewModel = viewModel)
+                TandemNavHost(viewModel = viewModel)
             }
         }
     }

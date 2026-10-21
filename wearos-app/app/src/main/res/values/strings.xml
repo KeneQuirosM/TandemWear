@@ -6,12 +6,9 @@
     <string name="default_phone_name" translatable="false">iPhone</string>
 
     <!-- Home -->
-    <string name="status_connected">Connected</string>
     <string name="status_notifications_active">Notifications active</string>
-    <string name="status_via_ancs">via ANCS over Bluetooth</string>
     <string name="status_connecting_to">Connecting to %1$s…</string>
     <string name="status_pairing_with">Pairing with %1$s…</string>
-    <string name="status_not_in_range">iPhone not in range</string>
     <string name="status_error_generic">Couldn\'t connect</string>
     <string name="repair_title">Your iPhone forgot this watch</string>
     <string name="repair_body">Pair again. If the watch still lists the iPhone in its Bluetooth settings, unpair it there first.</string>
@@ -22,7 +19,6 @@
     <string name="action_reconnect">Reconnect</string>
     <string name="action_pair_iphone">Pair iPhone</string>
     <string name="action_try_again">Try again</string>
-    <string name="action_back">Back</string>
     <string name="action_dismiss">Dismiss</string>
 
     <!-- Pairing -->
@@ -67,4 +63,32 @@
     <string name="channel_schedule_desc">Calendar reminders, alarms and timers from the iPhone</string>
     <string name="channel_other">Other</string>
     <string name="channel_other_desc">Other notifications</string>
+
+    <!-- Home (2.2) -->
+    <string name="home_connected_to">Connected to %1$s</string>
+    <string name="home_reconnecting">Reconnecting…</string>
+    <string name="home_disconnected">Disconnected</string>
+    <string name="home_disconnected_body">iPhone out of range or its Bluetooth is off. The watch keeps trying on its own.</string>
+    <string name="home_error_detail">Last error: %1$s</string>
+    <string name="home_bluetooth_off">Bluetooth is off</string>
+    <string name="home_bluetooth_off_body">Turn on the watch\'s Bluetooth to receive iPhone notifications.</string>
+    <string name="action_open_bluetooth">Bluetooth settings</string>
+    <string name="action_pair_again">Pair again</string>
+
+    <!-- About -->
+    <string name="about_title">About</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="about_description">Shows your iPhone\'s notifications and calls on this watch over Bluetooth (Apple ANCS).</string>
+    <string name="about_based_on">Based on WearBridge by Karthik Rajendran (MIT license).</string>
+    <string name="about_privacy">Free and local: no account, no cloud, no data leaves the watch.</string>
+    <string name="about_licenses">Licenses</string>
+    <string name="license_tandemwear_title">TandemWear</string>
+    <string name="license_wearbridge_title">WearBridge (Karthik Rajendran)</string>
+    <string name="license_androidx_title">AndroidX, Jetpack Compose, Kotlin</string>
+    <string name="license_icons_title">Icons: Material Symbols, Lucide</string>
+
+    <!-- License texts stay in English (legal text) -->
+    <string name="license_mit_body" translatable="false">MIT License. Copyright (c) 2026 Karthik Rajendran (WearBridge, original work); Copyright (c) 2026 TandemWear contributors (modifications).\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</string>
+    <string name="license_apache_body" translatable="false">Licensed under the Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0). Distributed on an \"AS IS\" basis, without warranties or conditions of any kind.</string>
+    <string name="license_icons_body" translatable="false">Material Symbols / Material Icons: Apache License 2.0, Google. Lucide icons: ISC License, Copyright (c) Lucide Contributors.</string>
 </resources>

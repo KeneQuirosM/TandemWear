@@ -35,16 +35,26 @@ object TandemColors {
     val accept = Color(0xFF7EE2A8)
     val onAccept = Color(0xFF00391C)
 
+    /** Connection-state accents (brief v2): teal = connected, amber = reconnecting, soft red = action needed. */
+    val stateConnected = primary
+    val stateReconnecting = warning
+    val stateAttention = Color(0xFFF2B8B5)
+    val stateIdle = Color(0xFF8A9094)
+
     val error = Color(0xFFF2B8B5)
     val onError = Color(0xFF601410)
 }
 
-/** Text sizes in sp, so they follow the system font size setting. */
+/**
+ * Text sizes in sp, so they follow the system font size setting. Important text (status,
+ * sender) uses [title]/[headline]; nothing user-facing goes below [caption].
+ */
 object TandemType {
-    val caption = 11.sp
-    val label = 12.sp
-    val body = 13.sp
-    val title = 14.sp
+    val caption = 12.sp
+    val label = 14.sp
+    val body = 15.sp
+    val title = 16.sp
+    val headline = 20.sp
     val callerName = 18.sp
 }
 
