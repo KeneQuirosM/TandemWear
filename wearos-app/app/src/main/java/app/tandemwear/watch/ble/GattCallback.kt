@@ -27,7 +27,8 @@ class GattCallback(
     private val onDescriptorWritten: (BluetoothGattDescriptor, Int) -> Unit,
     private val onCharacteristicWritten: (BluetoothGattCharacteristic, Int) -> Unit,
     private val onMtuChanged: (Int, Int) -> Unit,
-    private val onCharacteristicReadCallback: (BluetoothGattCharacteristic, ByteArray, Int) -> Unit
+    private val onCharacteristicReadCallback: (BluetoothGattCharacteristic, ByteArray, Int) -> Unit,
+    private val onServiceChangedCallback: (BluetoothGatt) -> Unit
 ) : BluetoothGattCallback() {
 
     companion object {
@@ -89,6 +90,12 @@ class GattCallback(
         status: Int
     ) {
         onCharacteristicReadCallback(characteristic, value, status)
+    }
+
+    /** API 31+: the remote's GATT database changed (e.g. iOS published ANCS); re-discover. */
+    override fun onServiceChanged(gatt: BluetoothGatt) {
+        Log.d(TAG, "Service Changed from ${gatt.device.address}")
+        onServiceChangedCallback(gatt)
     }
 
     override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {

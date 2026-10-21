@@ -16,6 +16,10 @@ class NotificationActionReceiver : BroadcastReceiver() {
         const val ACTION_POSITIVE = "app.tandemwear.watch.ACTION_POSITIVE"
         const val ACTION_NEGATIVE = "app.tandemwear.watch.ACTION_NEGATIVE"
         const val EXTRA_NOTIFICATION_UID = "notification_uid"
+        /** ANCS session the UID belongs to (UIDs are renumbered on every reconnect). */
+        const val EXTRA_SESSION_ID = "ancs_session_id"
+        /** Android notification id, so a stale notification can still be dismissed locally. */
+        const val EXTRA_ANDROID_ID = "android_notification_id"
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -41,6 +45,8 @@ class NotificationActionReceiver : BroadcastReceiver() {
             action = AncsService.ACTION_PERFORM_NOTIFICATION_ACTION
             putExtra(EXTRA_NOTIFICATION_UID, uid)
             putExtra(AncsService.EXTRA_ACTION_ID, actionId)
+            putExtra(EXTRA_SESSION_ID, intent.getLongExtra(EXTRA_SESSION_ID, 0L))
+            putExtra(EXTRA_ANDROID_ID, intent.getIntExtra(EXTRA_ANDROID_ID, -1))
         }
         context.startService(serviceIntent)
     }

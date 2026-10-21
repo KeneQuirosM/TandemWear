@@ -62,7 +62,6 @@ class AncsService : Service() {
     companion object {
         private const val TAG = "AncsService"
         private const val SERVICE_NOTIFICATION_ID = 1
-        private const val NOTIFICATION_ID_BASE = 1000
 
         const val ACTION_START = "app.tandemwear.watch.START"
         const val ACTION_STOP = "app.tandemwear.watch.STOP"
@@ -78,6 +77,10 @@ class AncsService : Service() {
         private const val ATTRIBUTE_RESPONSE_TIMEOUT_MS = 3_000L
         // How long fast "pairing" advertising lasts before falling back
         private const val PAIRING_WINDOW_MS = 3 * 60_000L
+        // Quiet time after the last skipped backlog event before logging the summary
+        private const val BACKLOG_SUMMARY_DELAY_MS = 2_000L
+        private const val PREFS_NOTIFICATION_IDS = "notification_ids"
+        private const val KEY_NEXT_ID = "next_id"
 
         /** Shared connection state observable by the ViewModel */
         private val _sharedConnectionState = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
@@ -100,6 +103,13 @@ class AncsService : Service() {
 
     private var activeCallUid: Long = -1
 
+    // ANCS UID → Android id, per session (UIDs are renumbered on every reconnect)
+    private lateinit var idRegistry: NotificationIdRegistry
+
+    // Backlog (PreExisting) events skipped in this session, logged as one summary line
+    private var skippedBacklogCount = 0
+    private var backlogSummaryJob: Job? = null
+
     // Pairing window: fast advertising, and unbonded iPhones may attach
     private var pairingWindowJob: Job? = null
     private val pairingWindowOpen: Boolean get() = pairingWindowJob?.isActive == true
@@ -115,6 +125,7 @@ class AncsService : Service() {
     private var pendingAttributeResponse: CompletableDeferred<Unit>? = null
 
     private data class AttributeRequest(
+        val sessionId: Long,
         val event: AncsEvent,
         val requestedAttributes: List<Int>
     )
@@ -142,10 +153,27 @@ class AncsService : Service() {
         }
     }
 
+    private val encryptionChangeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java) ?: return
+            val enabled = intent.getBooleanExtra(BondStateReceiver.EXTRA_ENCRYPTION_ENABLED, false)
+            connectionManager.onEncryptionChanged(device.address, enabled)
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         pairedPhoneStore = PairedPhoneStore(this)
-        connectionManager = BleConnectionManager(this) { pairedPhoneStore.bondedAddresses() }
+        connectionManager = BleConnectionManager(
+            this,
+            bondedAddresses = { pairedPhoneStore.bondedAddresses() },
+            pairedAddress = { pairedPhoneStore.pairedAddress }
+        )
+        val idPrefs = getSharedPreferences(PREFS_NOTIFICATION_IDS, MODE_PRIVATE)
+        idRegistry = NotificationIdRegistry(
+            initialNextId = idPrefs.getInt(KEY_NEXT_ID, NotificationIdRegistry.FIRST_ID),
+            onNextIdChanged = { idPrefs.edit().putInt(KEY_NEXT_ID, it).apply() }
+        )
         advertiser = WatchAdvertiser(this)
         inboundMonitor = InboundLinkMonitor(
             this,
@@ -166,6 +194,7 @@ class AncsService : Service() {
         registerReceiver(connectionManager.bondStateReceiver, BondStateReceiver.intentFilter)
         registerReceiver(adapterStateReceiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
         registerReceiver(keyMissingReceiver, IntentFilter(BondStateReceiver.ACTION_KEY_MISSING))
+        registerReceiver(encryptionChangeReceiver, IntentFilter(BondStateReceiver.ACTION_ENCRYPTION_CHANGE))
 
         // Register PhoneAccount for Telecom framework integration
         // This lets us show incoming calls via the system call UI
@@ -175,8 +204,9 @@ class AncsService : Service() {
 
         // Listen for Notification Source events
         scope.launch {
-            connectionManager.notificationSourceEvents.collect { data ->
-                handleNotificationSourceEvent(data)
+            connectionManager.notificationSourceEvents.collect { packet ->
+                ensureAncsSession(packet.sessionId)
+                handleNotificationSourceEvent(packet.data)
             }
         }
 
@@ -197,6 +227,11 @@ class AncsService : Service() {
                 }
                 _sharedConnectionState.value = shown
                 updateAdvertising(state)
+                if (state is ConnectionState.Connected) {
+                    ensureAncsSession(state.sessionId)
+                } else if (idRegistry.isSessionActive) {
+                    endAncsSession()
+                }
 
                 val text = when (shown) {
                     is ConnectionState.Idle -> "Idle"
@@ -228,8 +263,11 @@ class AncsService : Service() {
             ACTION_PERFORM_NOTIFICATION_ACTION -> {
                 val uid = intent.getLongExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_UID, -1)
                 val actionId = intent.getIntExtra(EXTRA_ACTION_ID, -1)
+                // 0 = sent by the call UI, which is torn down when a session ends
+                val sessionId = intent.getLongExtra(NotificationActionReceiver.EXTRA_SESSION_ID, 0L)
+                val androidId = intent.getIntExtra(NotificationActionReceiver.EXTRA_ANDROID_ID, -1)
                 if (uid != -1L && actionId != -1) {
-                    performNotificationAction(uid, actionId)
+                    performNotificationAction(uid, actionId, sessionId, androidId)
                 }
             }
             ACTION_CLEAR_ALL -> {
@@ -256,7 +294,7 @@ class AncsService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        listOf(connectionManager.bondStateReceiver, adapterStateReceiver, keyMissingReceiver).forEach {
+        listOf(connectionManager.bondStateReceiver, adapterStateReceiver, keyMissingReceiver, encryptionChangeReceiver).forEach {
             try {
                 unregisterReceiver(it)
             } catch (_: IllegalArgumentException) { }
@@ -358,7 +396,7 @@ class AncsService : Service() {
                 // Skip the backlog (PreExisting) at the NS level — don't even fetch
                 // attributes. This avoids GATT writes that trigger system haptics.
                 if (AncsEventFilter.decide(event) == AncsEventFilter.Decision.SKIP_PRE_EXISTING) {
-                    Log.d(TAG, "Skipping pre-existing NS event uid=${event.notificationUid}")
+                    countSkippedBacklog()
                     return
                 }
                 DiagnosticsLog.log("ancs: NS added/modified uid=${event.notificationUid} cat=${event.categoryId}")
@@ -409,15 +447,19 @@ class AncsService : Service() {
                 if (event.hasNegativeAction) attrs.add(AncsConstants.ATTR_NEGATIVE_ACTION_LABEL)
 
                 // Enqueue attribute fetch (for all notifications including calls)
+                val sessionId = idRegistry.sessionId
                 scope.launch {
-                    attributeRequestQueue.send(AttributeRequest(event, attrs))
+                    attributeRequestQueue.send(AttributeRequest(sessionId, event, attrs))
                 }
             }
             event.isRemoved -> {
                 // Cancel the Android notification and remove from tracking
-                val removedId = notificationIdForUid(event.notificationUid)
-                notificationManager.cancel(removedId)
-                activeNotificationIds.remove(removedId)
+                // Only notifications posted in this session: an old one with the same
+                // (renumbered) UID must not be cancelled
+                idRegistry.remove(event.notificationUid)?.let { removedId ->
+                    notificationManager.cancel(removedId)
+                    activeNotificationIds.remove(removedId)
+                }
 
                 // If this was an incoming call, dismiss everything
                 if (event.isIncomingCall || activeCallUid == event.notificationUid) {
@@ -463,6 +505,10 @@ class AncsService : Service() {
 
     private suspend fun processAttributeRequest(request: AttributeRequest) {
         val event = request.event
+        if (!idRegistry.isCurrent(request.sessionId)) {
+            Log.d(TAG, "Dropping attribute request for uid=${event.notificationUid} from an ended session")
+            return
+        }
 
         // Prepare the assembler to expect this response
         dataSourceAssembler.expectNotificationAttributes(
@@ -555,7 +601,14 @@ class AncsService : Service() {
         }
         val iconResId = AppIconMapper.getIconResId(notification.appIdentifier, notification.categoryId)
         Log.d(TAG, "Icon mapping: app='${notification.appIdentifier}' cat=${notification.categoryId} -> resId=$iconResId (default=${R.drawable.ic_notification_default})")
-        val notifId = notificationIdForUid(notification.uid)
+        if (!idRegistry.isSessionActive) {
+            Log.w(TAG, "Dropping uid=${notification.uid}: no ANCS session")
+            return
+        }
+        // Fresh id per (session, UID): a renumbered UID never replaces an old notification
+        // silently. MODIFIED events reuse the id and update in place (setOnlyAlertOnce).
+        val notifId = idRegistry.idFor(notification.uid)
+        val sessionId = idRegistry.sessionId
 
         val contentIntent = PendingIntent.getActivity(
             this, 0,
@@ -585,6 +638,8 @@ class AncsService : Service() {
             // heads-up overlays, vibration, and sound on ALL child notifications.
             .setGroup("ancs_${notification.uid}")
             .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_ALL)
+            // New id = alerts; MODIFIED updates of the same notification don't buzz again
+            .setOnlyAlertOnce(true)
             .setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI)
 
         // MessagingStyle — Samsung One UI Watch renders this with message body
@@ -614,8 +669,10 @@ class AncsService : Service() {
                 Intent(NotificationActionReceiver.ACTION_POSITIVE).apply {
                     setPackage(packageName)
                     putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_UID, notification.uid)
+                    putExtra(NotificationActionReceiver.EXTRA_SESSION_ID, sessionId)
+                    putExtra(NotificationActionReceiver.EXTRA_ANDROID_ID, notifId)
                 },
-                PendingIntent.FLAG_IMMUTABLE
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
             builder.addAction(R.drawable.ic_check, notification.positiveActionLabel, positiveIntent)
         }
@@ -626,8 +683,10 @@ class AncsService : Service() {
                 Intent(NotificationActionReceiver.ACTION_NEGATIVE).apply {
                     setPackage(packageName)
                     putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_UID, notification.uid)
+                    putExtra(NotificationActionReceiver.EXTRA_SESSION_ID, sessionId)
+                    putExtra(NotificationActionReceiver.EXTRA_ANDROID_ID, notifId)
                 },
-                PendingIntent.FLAG_IMMUTABLE
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
             builder.addAction(R.drawable.ic_close, notification.negativeActionLabel, negativeIntent)
         }
@@ -740,19 +799,79 @@ class AncsService : Service() {
     }
 
 
-    private fun performNotificationAction(uid: Long, actionId: Int) {
-        val data = ControlPointWriter.buildPerformNotificationAction(uid, actionId)
-        scope.launch {
-            if (!connectionManager.writeControlPoint(data)) {
-                Log.e(TAG, "Failed to perform action $actionId on uid=$uid")
-            }
-        }
+    private fun performNotificationAction(uid: Long, actionId: Int, sessionId: Long, androidId: Int) {
         // Cancel vibration (in case this is a call answer/decline)
         vibrator.cancel()
+
+        val stale = sessionId != NotificationIdRegistry.NO_SESSION && !idRegistry.isCurrent(sessionId)
+        if (stale) {
+            // The UID now names a different notification on the iPhone: never send it
+            DiagnosticsLog.log("ancs: action on a notification from an ended session — dismissed locally only")
+        } else {
+            val data = ControlPointWriter.buildPerformNotificationAction(uid, actionId)
+            scope.launch {
+                if (!connectionManager.writeControlPoint(data)) {
+                    Log.e(TAG, "Failed to perform action $actionId on uid=$uid")
+                }
+            }
+        }
+
         // Cancel the Android notification and remove from tracking
-        val notifId = notificationIdForUid(uid)
-        notificationManager.cancel(notifId)
-        activeNotificationIds.remove(notifId)
+        val notifId = androidId.takeIf { it != -1 }
+            ?: if (stale) null else idRegistry.existingId(uid)
+        if (!stale) idRegistry.remove(uid)
+        notifId?.let {
+            notificationManager.cancel(it)
+            activeNotificationIds.remove(it)
+        }
+    }
+
+    /** Start tracking a new ANCS session if [sessionId] differs from the current one. */
+    private fun ensureAncsSession(sessionId: Long) {
+        if (sessionId == NotificationIdRegistry.NO_SESSION || idRegistry.isCurrent(sessionId)) return
+        if (idRegistry.isSessionActive) endAncsSession()
+        idRegistry.startSession(sessionId)
+        DiagnosticsLog.log("ancs: new session — UIDs restart, notifications from earlier sessions keep their own ids")
+    }
+
+    /**
+     * The ANCS session ended: every UID-bound piece of state is now meaningless (Apple spec).
+     * Notifications already on the watch stay (their actions become local-only).
+     */
+    private fun endAncsSession() {
+        flushBacklogSummary()
+        val mapped = idRegistry.mappedCount
+        idRegistry.endSession()
+        dataSourceAssembler.reset()
+        pendingAttributeResponse?.complete(Unit)
+        var dropped = 0
+        while (attributeRequestQueue.tryReceive().isSuccess) dropped++
+        if (activeCallUid != -1L) {
+            activeCallUid = -1
+            vibrator.cancel()
+            notificationManager.cancel(NOTIFICATION_ID_CALL)
+            AncsConnectionService.endActiveCall()
+            sendBroadcast(Intent(IncomingCallActivity.ACTION_CALL_ENDED).setPackage(packageName))
+        }
+        DiagnosticsLog.log("ancs: session ended — cleared $mapped UID mappings, $dropped pending requests")
+    }
+
+    private fun countSkippedBacklog() {
+        skippedBacklogCount++
+        backlogSummaryJob?.cancel()
+        backlogSummaryJob = scope.launch {
+            delay(BACKLOG_SUMMARY_DELAY_MS)
+            flushBacklogSummary()
+        }
+    }
+
+    private fun flushBacklogSummary() {
+        backlogSummaryJob?.cancel()
+        backlogSummaryJob = null
+        if (skippedBacklogCount > 0) {
+            DiagnosticsLog.log("ancs: $skippedBacklogCount old notifications skipped (PreExisting)")
+            skippedBacklogCount = 0
+        }
     }
 
     private fun resolveAppName(appIdentifier: String): String? {
@@ -805,9 +924,6 @@ class AncsService : Service() {
         AncsConstants.CATEGORY_EMAIL -> Notification.CATEGORY_EMAIL
         else -> Notification.CATEGORY_MESSAGE
     }
-
-    private fun notificationIdForUid(uid: Long): Int =
-        (NOTIFICATION_ID_BASE + (uid % 500_000)).toInt()
 
     private fun buildServiceNotification(text: String): Notification {
         val intent = PendingIntent.getActivity(

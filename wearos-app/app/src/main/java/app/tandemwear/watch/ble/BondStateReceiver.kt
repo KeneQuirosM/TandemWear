@@ -26,6 +26,10 @@ class BondStateReceiver(
          * because we compile against SDK 35. Delivery depends on the OEM.
          */
         const val ACTION_KEY_MISSING = "android.bluetooth.device.action.KEY_MISSING"
+
+        /** Android 16 (API 36) BluetoothDevice.ACTION_ENCRYPTION_CHANGE and its boolean extra. */
+        const val ACTION_ENCRYPTION_CHANGE = "android.bluetooth.device.action.ENCRYPTION_CHANGE"
+        const val EXTRA_ENCRYPTION_ENABLED = "android.bluetooth.device.extra.ENCRYPTION_ENABLED"
     }
 
     override fun onReceive(context: Context, intent: Intent) {

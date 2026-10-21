@@ -8,6 +8,7 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import app.tandemwear.watch.ble.GattOperationQueue.OpKey
 import app.tandemwear.watch.diag.DiagnosticsLog
@@ -50,8 +51,10 @@ import java.util.UUID
 @SuppressLint("MissingPermission")
 class BleConnectionManager(
     private val context: Context,
-    /** Current bonded addresses, to find which identity address a new bond created. */
-    private val bondedAddresses: () -> Set<String>
+    /** Current bonded addresses, to find which address a new bond created. */
+    private val bondedAddresses: () -> Set<String>,
+    /** Bond address of the paired iPhone, if any (a missing ANCS is then never terminal). */
+    private val pairedAddress: () -> String?
 ) {
 
     companion object {
@@ -59,7 +62,6 @@ class BleConnectionManager(
         private const val MAX_RECONNECT_DELAY_MS = 30_000L
         private const val INITIAL_RECONNECT_DELAY_MS = 3_000L
         private const val TARGET_MTU = 512
-        private const val MAX_SERVICE_DISCOVERY_RETRIES = 2
         private const val EVENT_BUFFER_CAPACITY = 256
         /** The user has to accept the pairing prompt on the iPhone. */
         private const val BOND_TIMEOUT_MS = 90_000L
@@ -78,8 +80,16 @@ class BleConnectionManager(
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
-    private val _notificationSourceEvents = MutableSharedFlow<ByteArray>(extraBufferCapacity = EVENT_BUFFER_CAPACITY)
-    val notificationSourceEvents: SharedFlow<ByteArray> = _notificationSourceEvents.asSharedFlow()
+    private val _notificationSourceEvents = MutableSharedFlow<AncsSessionPacket>(extraBufferCapacity = EVENT_BUFFER_CAPACITY)
+    /** Notification Source events tagged with the ANCS session they belong to. */
+    val notificationSourceEvents: SharedFlow<AncsSessionPacket> = _notificationSourceEvents.asSharedFlow()
+
+    /**
+     * Session token NS events are tagged with. Set before subscribing Notification Source,
+     * so events that race ahead of the Connected state still carry the new session.
+     */
+    @Volatile
+    private var currentSessionId = 0L
 
     private val _dataSourceEvents = MutableSharedFlow<ByteArray>(extraBufferCapacity = EVENT_BUFFER_CAPACITY)
     val dataSourceEvents: SharedFlow<ByteArray> = _dataSourceEvents.asSharedFlow()
@@ -106,6 +116,11 @@ class BleConnectionManager(
     private var autoReconnect = true
 
     private var serviceDiscoveryRetries = 0
+    /** When the current link came up (elapsedRealtime), to report how long ANCS took. */
+    private var linkUpAtMs = 0L
+    /** Completed by encryption change / Service Changed to cut an ANCS wait short. */
+    private var ancsWait: CompletableDeferred<String>? = null
+    private var ancsWaitJob: Job? = null
     private var notificationSourceChar: BluetoothGattCharacteristic? = null
     private var controlPointChar: BluetoothGattCharacteristic? = null
     private var dataSourceChar: BluetoothGattCharacteristic? = null
@@ -153,7 +168,9 @@ class BleConnectionManager(
         // NS/DS bytes are emitted straight from the binder thread to keep ordering and latency;
         // SharedFlow is thread-safe and the value arrays are fresh copies on API 33+.
         onNotificationSourceChanged = { data ->
-            if (!_notificationSourceEvents.tryEmit(data)) Log.e(TAG, "NS event dropped: buffer full")
+            if (!_notificationSourceEvents.tryEmit(AncsSessionPacket(currentSessionId, data))) {
+                Log.e(TAG, "NS event dropped: buffer full")
+            }
         },
         onDataSourceChanged = { data ->
             if (!_dataSourceEvents.tryEmit(data)) Log.e(TAG, "DS fragment dropped: buffer full")
@@ -192,6 +209,15 @@ class BleConnectionManager(
                 val ok = status == BluetoothGatt.GATT_SUCCESS
                 operations.onComplete(OpKey.ReadCharacteristic(characteristic.uuid), ok)
                 if (ok) onCharacteristicRead(characteristic.uuid, value)
+            }
+        },
+        onServiceChangedCallback = { g ->
+            scope.launch {
+                if (g !== gatt) return@launch
+                DiagnosticsLog.log("gatt: Service Changed received")
+                signalAncsWait("service changed")
+                // While waiting for ANCS the wait loop re-discovers; otherwise do it now
+                if (ancsWait == null) discoverServices(g)
             }
         }
     )
@@ -262,6 +288,7 @@ class BleConnectionManager(
         linkUp = true
         reconnectDelay = INITIAL_RECONNECT_DELAY_MS
         bondedSnapshot = bondedAddresses()
+        linkUpAtMs = SystemClock.elapsedRealtime()
         _connectionState.value = ConnectionState.Connecting(displayName(g.device))
         DiagnosticsLog.log(
             "gatt: connected ${g.device.address} bond=${bondName(g.device.bondState)} " +
@@ -323,19 +350,13 @@ class BleConnectionManager(
                 }
                 return
             }
-            // Bonded but ANCS not visible: notification sharing off, or ANCS not published yet
-            serviceDiscoveryRetries++
-            if (serviceDiscoveryRetries <= MAX_SERVICE_DISCOVERY_RETRIES) {
-                DiagnosticsLog.log("gatt: bonded but no ANCS, retry $serviceDiscoveryRetries/$MAX_SERVICE_DISCOVERY_RETRIES")
-                scope.launch {
-                    delay(2000)
-                    if (gatt === g) discoverServices(g)
-                }
-            } else {
-                DiagnosticsLog.log("gatt: no ANCS after retries — not an iPhone, or notification sharing is off")
-                disconnectInternal()
-                _connectionState.value = ConnectionState.Error("No ANCS: enable notification sharing on the iPhone")
+            if (notificationSourceChar != null) {
+                // ANCS was unpublished under an active session (Service Changed): session over
+                DiagnosticsLog.log("ancs: ANCS disappeared from the iPhone, session ended")
+                clearAncsCharacteristics()
+                _connectionState.value = ConnectionState.Connecting(displayName(g.device))
             }
+            waitForAncs(g)
             return
         }
 
@@ -345,6 +366,11 @@ class BleConnectionManager(
             return
         }
 
+        DiagnosticsLog.log(
+            "ancs: ANCS visible ${SystemClock.elapsedRealtime() - linkUpAtMs} ms after link up " +
+                "(discovery retries: $serviceDiscoveryRetries)"
+        )
+        cancelAncsWait()
         serviceDiscoveryRetries = 0
         val ns = ancsService.getCharacteristic(AncsConstants.NOTIFICATION_SOURCE_UUID)
         val cp = ancsService.getCharacteristic(AncsConstants.CONTROL_POINT_UUID)
@@ -388,6 +414,8 @@ class BleConnectionManager(
                     return
                 }
             }
+            // New ANCS session: the iPhone renumbers UIDs, so tag what follows with a new token
+            currentSessionId = SystemClock.elapsedRealtimeNanos()
             subscribed = subscribed && subscribe(g, ns)
             if (gatt !== g) return
             if (!subscribed) {
@@ -400,8 +428,10 @@ class BleConnectionManager(
             notificationSourceChar = ns
             controlPointChar = cp
             keyLoss.onSessionEstablished()
-            DiagnosticsLog.log("ancs: SESSION ACTIVE (subscribed DS + NS)")
-            _connectionState.value = ConnectionState.Connected(resolveDeviceName())
+            DiagnosticsLog.log(
+                "ancs: SESSION ACTIVE (subscribed DS + NS) ${SystemClock.elapsedRealtime() - linkUpAtMs} ms after link up"
+            )
+            _connectionState.value = ConnectionState.Connected(resolveDeviceName(), currentSessionId)
             readGapDeviceName(g)
         } finally {
             isSubscribing = false
@@ -523,8 +553,9 @@ class BleConnectionManager(
         if (name.isNotBlank()) {
             cachedDeviceName = name
             DiagnosticsLog.log("gatt: iPhone name \"$name\"")
-            if (_connectionState.value is ConnectionState.Connected) {
-                _connectionState.value = ConnectionState.Connected(name)
+            val state = _connectionState.value
+            if (state is ConnectionState.Connected) {
+                _connectionState.value = state.copy(deviceName = name)
             }
         }
     }
@@ -573,10 +604,97 @@ class BleConnectionManager(
     private fun clearSession() {
         linkUp = false
         operations.clear()
+        cancelAncsWait()
+        clearAncsCharacteristics()
+        isSubscribing = false
+    }
+
+    private fun clearAncsCharacteristics() {
         notificationSourceChar = null
         controlPointChar = null
         dataSourceChar = null
-        isSubscribing = false
+        currentSessionId = 0L
+    }
+
+    /**
+     * Bonded link without ANCS (yet). After a reconnect iOS publishes ANCS only once the link
+     * is encrypted with the bond's keys, so wait — progressively longer — and re-discover as
+     * soon as Android reports encryption or a Service Changed, or when the wait expires.
+     * A paired iPhone is never a terminal error: the link is dropped and reconnection retries.
+     */
+    private fun waitForAncs(g: BluetoothGatt) {
+        val retry = serviceDiscoveryRetries
+        val waitMs = AncsDiscoveryPolicy.delayBeforeRetry(retry)
+        val elapsed = SystemClock.elapsedRealtime() - linkUpAtMs
+        if (waitMs == null) {
+            val paired = pairedAddress()?.equals(g.device.address, ignoreCase = true) == true
+            when (AncsDiscoveryPolicy.onExhausted(paired)) {
+                AncsDiscoveryPolicy.OnExhausted.RECONNECT_LATER -> {
+                    DiagnosticsLog.log("ancs: still no ANCS ${elapsed} ms after link up — dropping link, will reconnect")
+                    _connectionState.value = ConnectionState.Disconnected("Waiting for the iPhone")
+                    g.disconnect() // handleDisconnected keeps autoReconnect and schedules it
+                }
+                AncsDiscoveryPolicy.OnExhausted.REPORT_ERROR -> {
+                    DiagnosticsLog.log("ancs: no ANCS after retries — not an iPhone, or notification sharing is off")
+                    disconnectInternal()
+                    _connectionState.value = ConnectionState.Error("No ANCS: enable notification sharing on the iPhone")
+                }
+            }
+            return
+        }
+
+        serviceDiscoveryRetries++
+        DiagnosticsLog.log(
+            "ancs: bonded but no ANCS yet (${g.services.size} services, ${elapsed} ms after link up); " +
+                "waiting up to $waitMs ms for encryption/Service Changed (retry ${retry + 1}/${AncsDiscoveryPolicy.RETRY_DELAYS_MS.size})"
+        )
+        cancelAncsWait()
+        val wait = CompletableDeferred<String>()
+        ancsWait = wait
+        ancsWaitJob = scope.launch {
+            val trigger = withTimeoutOrNull(waitMs) { wait.await() } ?: "timer"
+            if (ancsWait === wait) ancsWait = null
+            if (gatt !== g || !linkUp) return@launch
+            if (AncsDiscoveryPolicy.shouldRefreshCache(retry)) {
+                DiagnosticsLog.log("gatt: refreshing Android's GATT cache: ${refreshGattCache(g)}")
+            }
+            DiagnosticsLog.log("gatt: re-discovering services (trigger: $trigger)")
+            discoverServices(g)
+        }
+    }
+
+    private fun signalAncsWait(trigger: String) {
+        ancsWait?.complete(trigger)
+    }
+
+    private fun cancelAncsWait() {
+        ancsWaitJob?.cancel()
+        ancsWaitJob = null
+        ancsWait = null
+    }
+
+    /**
+     * Android caches the GATT database of bonded devices; a cache taken before encryption
+     * can miss ANCS. BluetoothGatt.refresh() is not public API (non-SDK, reflection), so this
+     * is best effort and the result is logged.
+     */
+    private fun refreshGattCache(g: BluetoothGatt): Boolean = try {
+        g.javaClass.getMethod("refresh").invoke(g) as? Boolean ?: false
+    } catch (e: Exception) {
+        false
+    }
+
+    /**
+     * Android reported an encryption change on a link (Android 16 ACTION_ENCRYPTION_CHANGE;
+     * delivery depends on target SDK and OEM). Encrypted = the bond is in use, so ANCS
+     * should now be published: re-discover right away.
+     */
+    fun onEncryptionChanged(address: String, encrypted: Boolean) {
+        scope.launch {
+            if (!gatt?.device?.address.equals(address, ignoreCase = true)) return@launch
+            DiagnosticsLog.log("gatt: encryption ${if (encrypted) "ON" else "OFF"} for $address")
+            if (encrypted) signalAncsWait("encryption on")
+        }
     }
 
     private fun bondName(state: Int) = when (state) {
@@ -595,3 +713,6 @@ class BleConnectionManager(
         gatt = null
     }
 }
+
+/** A Notification Source payload and the ANCS session it arrived in. */
+class AncsSessionPacket(val sessionId: Long, val data: ByteArray)
