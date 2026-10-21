@@ -17,6 +17,9 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import app.tandemwear.watch.AncsApplication
 import app.tandemwear.watch.R
+import app.tandemwear.watch.ams.MusicSession
+import app.tandemwear.watch.ams.RemoteCommand
+import app.tandemwear.watch.ble.AmsPacket
 import app.tandemwear.watch.ble.AncsConstants
 import app.tandemwear.watch.ble.BleConnectionManager
 import app.tandemwear.watch.ble.InboundLinkMonitor
@@ -78,6 +81,12 @@ class AncsService : Service() {
         const val ACTION_PERFORM_NOTIFICATION_ACTION = "app.tandemwear.watch.PERFORM_ACTION"
         const val ACTION_CLEAR_ALL = "app.tandemwear.watch.CLEAR_ALL"
         const val EXTRA_ACTION_ID = "action_id"
+        /** Music (AMS): send a RemoteCommand id ([EXTRA_MEDIA_COMMAND]) to the iPhone. */
+        const val ACTION_MEDIA_COMMAND = "app.tandemwear.watch.MEDIA_COMMAND"
+        const val EXTRA_MEDIA_COMMAND = "media_command"
+        /** Music (AMS): the player screen or Tile needs data ([EXTRA_MUSIC_DEMANDED]); ON_DEMAND mode. */
+        const val ACTION_MUSIC_DEMAND = "app.tandemwear.watch.MUSIC_DEMAND"
+        const val EXTRA_MUSIC_DEMANDED = "music_demanded"
         const val NOTIFICATION_ID_CALL = 999
         private const val MAX_ACTIVE_NOTIFICATIONS = 20 // Android limit is 25; keep headroom
         // Max wait for a full Data Source response before moving to the next request
@@ -95,6 +104,10 @@ class AncsService : Service() {
 
         /** Shared connection state observable by the ViewModel */
         private val _sharedConnectionState = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
+
+        private val _sharedMusic = MutableStateFlow(MusicSession.NONE)
+        /** The iPhone's music for the current ANCS session (AMS). NONE without a session. */
+        val sharedMusic: StateFlow<MusicSession> = _sharedMusic.asStateFlow()
         val sharedConnectionState: StateFlow<ConnectionState> = _sharedConnectionState.asStateFlow()
     }
 
@@ -254,6 +267,20 @@ class AncsService : Service() {
             }
         }
 
+        // Music (AMS): fold packets of the current session into the shared state
+        scope.launch {
+            connectionManager.amsEvents.collect { packet ->
+                if (!idRegistry.isCurrent(packet.sessionId)) return@collect
+                val now = android.os.SystemClock.elapsedRealtime()
+                _sharedMusic.value = when (packet) {
+                    is AmsPacket.Status -> _sharedMusic.value.onStatus(packet.available, packet.subscribed)
+                    is AmsPacket.EntityUpdate -> _sharedMusic.value.onEntityUpdate(packet.data, now)
+                    is AmsPacket.SupportedCommands -> _sharedMusic.value.onSupportedCommands(packet.data)
+                    is AmsPacket.FullValue -> _sharedMusic.value.onFullValue(packet.entity, packet.attribute, packet.value, now)
+                }
+            }
+        }
+
         // Listen for Data Source events
         scope.launch {
             connectionManager.dataSourceEvents.collect { data ->
@@ -317,6 +344,11 @@ class AncsService : Service() {
                     performNotificationAction(uid, actionId, sessionId, androidId)
                 }
             }
+            ACTION_MEDIA_COMMAND -> {
+                val command = RemoteCommand.fromId(intent.getIntExtra(EXTRA_MEDIA_COMMAND, -1))
+                if (command != null) scope.launch { connectionManager.sendMediaCommand(command) }
+            }
+            ACTION_MUSIC_DEMAND -> connectionManager.setMusicDemanded(intent.getBooleanExtra(EXTRA_MUSIC_DEMANDED, false))
             ACTION_CLEAR_ALL -> {
                 Log.i(TAG, "Clearing all notifications (${activeNotificationIds.size} tracked)")
                 activeNotificationIds.forEach { id ->
@@ -1045,6 +1077,7 @@ class AncsService : Service() {
         flushBacklogSummary()
         val mapped = idRegistry.mappedCount
         idRegistry.endSession()
+        _sharedMusic.value = MusicSession.NONE
         dataSourceAssembler.reset()
         pendingAttributeResponse?.complete(Unit)
         var dropped = 0
