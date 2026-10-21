@@ -64,14 +64,14 @@ dependencies {
 
     // Compose for Wear OS
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))
-    implementation("androidx.wear.compose:compose-material3:1.7.1")
-    implementation("androidx.wear.compose:compose-foundation:1.7.1")
-    implementation("androidx.wear.compose:compose-navigation:1.7.1")
+    implementation("androidx.wear.compose:compose-material3:1.6.2")
+    implementation("androidx.wear.compose:compose-foundation:1.6.2")
+    implementation("androidx.wear.compose:compose-navigation:1.6.2")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
-    implementation("androidx.wear.compose:compose-ui-tooling:1.7.1")
+    implementation("androidx.wear.compose:compose-ui-tooling:1.6.2")
 
     // Activity + Lifecycle
     implementation("androidx.activity:activity-compose:1.9.3")
