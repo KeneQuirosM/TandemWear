@@ -77,4 +77,39 @@ Al terminar entrego el resumen, los comandos y las pruebas manuales en el Galaxy
   - tema oscuro con la paleta del mockup (`TandemColors`) y tamaños en `sp` (`TandemType`);
   - todos los textos de la UI, de la notificación del servicio, de los canales y de Telecom están en `values/strings.xml` (inglés) y `values-es/strings.xml`;
   - `StringResourcesTest` verifica que ambos idiomas tengan las mismas claves y los mismos marcadores, y que la UI no tenga textos fijos;
-  - excepción: los mensajes de error que genera la capa BLE (`ConnectionState.Error`) siguen en inglés. La UI los muestra bajo un título traducido («No se pudo conectar»). Traducirlos requiere códigos de error en `BleConnectionManager`; queda para cuando se pueda tocar esa capa.
+  - excepción: los mensajes de error que genera la capa BLE (`ConnectionState.Error`) siguen en inglés. La UI los muestra bajo un título traducido («No se pudo conectar»).
+- **Aplazado (decisión del 21-10):** traducir esos errores requiere códigos de error en `BleConnectionManager`. **No se toca `BleConnectionManager`** (ni el emparejamiento ni la reconexión) hasta que termine la prueba de larga duración del usuario y él dé el OK.
+- **Firma de depuración fija** (commit aparte): `wearos-app/keystore/debug.keystore`. Las compilaciones de CI y las locales se instalan encima con `adb install -r`. La primera instalación tras el cambio todavía exige desinstalar una vez.
+
+## Reconciliación con el brief v2 (`prompt_fase2_v2.md`)
+
+| Tema | Plan anterior | Brief v2 | Propuesta |
+|---|---|---|---|
+| Recientes | Historial Room, últimas 50 (decisión 1) | Lista con las últimas 20; detalle con acciones; descartar del reloj | **Guardar 50 y mostrar 20** en Inicio; el detalle muestra las acciones del iPhone solo si la notificación es de la sesión actual (UID válido) |
+| Vibración | Canales del sistema + «Silenciar esta app» (decisión 2) | Patrones propios por categoría (ninguna/corta/doble/larga) con vista previa | **Choque.** Opción intermedia: un canal por (categoría, patrón), así la vibración sigue siendo la del sistema y no rompe los avisos emergentes. **Decides tú** |
+| No molestar | Horario propio | Horario + excepción de llamadas; selector de hora deslizable (sin teclado numérico) | Brief: `TimePicker` de Wear Compose M3 (rueda), sin campos de texto |
+| Privacidad | Ocultar contenido por app | Por app + no mostrar contenido con pantalla bloqueada | Brief (añade `setPublicVersion` / `VISIBILITY_PRIVATE`) |
+| Estados de conexión | Los de `ConnectionState` | + «Bluetooth apagado», «reconectando» | Brief. «Bluetooth apagado» lo calcula el ViewModel con el estado del adaptador; **no se toca la capa BLE** |
+| Identidad | — | Dos círculos entrelazados en el ícono y el indicador | Brief: ícono adaptativo vectorial nuevo + indicador de conexión |
+| Modo ambiente | — | Atenuar y evitar quemado (Wear OS 6 mantiene la actividad visible) | Brief (`AmbientLifecycleObserver` de `androidx.wear:wear`; versión a confirmar) |
+| Tile | Estado + 4 accesos (mockup) | Estado + última notificación + pendientes | Brief, con un toque que abre la app; respeta «ocultar contenido» |
+| Complicación | Estado | Ícono + texto corto | Igual |
+| Acerca de | Pantalla en la navegación | Versión, «basado en WearBridge», licencias | Brief |
+| Idioma | Respaldo inglés (decisión 3) | «Español idioma principal» | Compatible: ambos idiomas completos y el inglés como respaldo para otros idiomas |
+| Apps conocidas | En 2.4 | B5 | Igual (aún no está hecho) |
+| Ajustes en vivo | DataStore | Sin reiniciar el servicio, con tests | El servicio observa los flujos de DataStore; la lógica va en `NotificationPolicy` pura con tests |
+| Capturas | — | `@Preview` o tests de capturas, y cómo verlos | **Propuesta:** Roborazzi + Robolectric (gratis y local). Genera PNG de cada pantalla en CI como artefacto, para verlas sin el reloj |
+| Ramas | — | `feature/...` | La sesión solo permite `claude/dazzling-heisenberg-ttxsvg`: commits pequeños, cada uno compilando |
+| Dependencias | Subir M3 alpha → estable | No cambiar sin OK | Ver «Versiones» abajo; **espero tu OK** |
+
+### Versiones (documentación oficial, consultada el 21-10-2026)
+
+| Librería | Hoy | Última estable | Nota |
+|---|---|---|---|
+| Wear Compose (foundation/navigation) | 1.4.1 | **1.7.1** (07-10-2026) | 1.8.0-alpha exige Kotlin 2.2 |
+| Wear Compose Material 3 | **1.0.0-alpha29** | La página de M3 indica 1.5.0 (27-08-2025) como primera estable; Wear Compose se versiona en conjunto, así que probablemente también 1.7.1 | **Por confirmar en CI.** La estable trae `AppScaffold`/`ScreenScaffold`, `EdgeButton`, `TimePicker` y `TransformingLazyColumn` (en foundation) |
+| Tiles | — | 1.6.2 (29-07-2026) | Exige compileSdk ≥ 35. Los eventos de entrada y salida van por `onRecentInteractionEvents` (agrupados); los antiguos no funcionan con target 36 |
+| ProtoLayout | — | 1.4.2 (29-07-2026) | `protolayout-material3`: coordenadas por confirmar en Maven |
+| Complicaciones | — | watchface 1.3.0 (25-02-2026) | `watchface-complications-data-source-ktx` |
+
+**Riesgo:** subir a Wear Compose 1.7 arrastra Compose 1.9+ y probablemente exige `compileSdk 36`. Propongo hacerlo **en un commit aislado**, verificado en CI, antes del bloque A, junto con el cambio a `targetSdk 36` ya evaluado en `docs/ANDROID16_WEAROS6.md`.
