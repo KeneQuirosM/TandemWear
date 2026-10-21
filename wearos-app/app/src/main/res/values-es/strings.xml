@@ -142,4 +142,24 @@
     <string name="home_linked_no_ancs_body">El iPhone está conectado pero no comparte las notificaciones. Suele arreglarse solo. Si dura, revisa en el iPhone Ajustes › Bluetooth › (i) › Compartir notificaciones del sistema, o reinicia el iPhone.</string>
     <string name="service_status_linked_no_ancs">Conectado, el iPhone no comparte notificaciones</string>
     <string name="pair_status_linked_no_ancs">Conectado. Esperando que el iPhone comparta las notificaciones…</string>
+
+    <!-- Reproductor de música (Fase 3) -->
+    <string name="player_music_off">La música está desactivada</string>
+    <string name="player_music_off_body">Actívala en Ajustes › Música para controlar lo que suena en el iPhone.</string>
+    <string name="player_unavailable">Música no disponible</string>
+    <string name="player_unavailable_body">Conecta el iPhone. Si ya está conectado, todavía no comparte su música con el reloj.</string>
+    <string name="player_nothing_playing">Nada suena</string>
+    <string name="player_nothing_playing_body">Pon algo en el iPhone (Spotify, Música…) y aparecerá aquí.</string>
+    <string name="player_unknown_title">Título desconocido</string>
+    <string name="player_play">Reproducir</string>
+    <string name="player_pause">Pausar</string>
+    <string name="player_previous">Anterior</string>
+    <string name="player_next">Siguiente</string>
+    <string name="player_volume_down">Bajar volumen</string>
+    <string name="player_volume_up">Subir volumen</string>
+    <string name="player_volume_percent">Volumen %1$d%%</string>
+    <string name="player_progress_description">%1$s de %2$s</string>
+    <string name="player_state_playing">Sonando</string>
+    <string name="player_state_paused">En pausa</string>
+    <string name="music_card_description">%1$s: %2$s, %3$s, en %4$s</string>
 </resources>

@@ -147,6 +147,26 @@
     <string name="service_status_linked_no_ancs">Connected, iPhone not sharing notifications</string>
     <string name="pair_status_linked_no_ancs">Connected. Waiting for the iPhone to share notifications…</string>
 
+    <!-- Music player (Phase 3) -->
+    <string name="player_music_off">Music is off</string>
+    <string name="player_music_off_body">Turn it on in Settings › Music to control what the iPhone plays.</string>
+    <string name="player_unavailable">Music unavailable</string>
+    <string name="player_unavailable_body">Connect the iPhone. If it is connected, it isn\'t sharing its music with the watch yet.</string>
+    <string name="player_nothing_playing">Nothing playing</string>
+    <string name="player_nothing_playing_body">Play something on the iPhone (Spotify, Music…) and it shows up here.</string>
+    <string name="player_unknown_title">Unknown title</string>
+    <string name="player_play">Play</string>
+    <string name="player_pause">Pause</string>
+    <string name="player_previous">Previous</string>
+    <string name="player_next">Next</string>
+    <string name="player_volume_down">Volume down</string>
+    <string name="player_volume_up">Volume up</string>
+    <string name="player_volume_percent">Volume %1$d%%</string>
+    <string name="player_progress_description">%1$s of %2$s</string>
+    <string name="player_state_playing">Playing</string>
+    <string name="player_state_paused">Paused</string>
+    <string name="music_card_description">%1$s: %2$s, %3$s, on %4$s</string>
+
     <!-- License texts stay in English (legal text) -->
     <string name="license_mit_body" translatable="false">MIT License. Copyright (c) 2026 Karthik Rajendran (WearBridge, original work); Copyright (c) 2026 TandemWear contributors (modifications).\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</string>
     <string name="license_apache_body" translatable="false">Licensed under the Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0). Distributed on an \"AS IS\" basis, without warranties or conditions of any kind.</string>

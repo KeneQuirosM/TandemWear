@@ -13,6 +13,8 @@ import android.content.IntentFilter
 import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import app.tandemwear.watch.ams.MusicSession
+import app.tandemwear.watch.ams.RemoteCommand
 import app.tandemwear.watch.ancs.AncsService
 import app.tandemwear.watch.ancs.NotificationActionReceiver
 import app.tandemwear.watch.data.history.HistoryEntry
@@ -77,6 +79,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun historyEntry(id: Long): Flow<HistoryEntry?> = history.entry(id)
+
+    /** The iPhone's music (AMS) for the current session. */
+    val music: StateFlow<MusicSession> = AncsService.sharedMusic
+
+    /** Sends a media command (play/pause, next, volume…) to the iPhone. */
+    fun sendMediaCommand(command: RemoteCommand) {
+        val context = getApplication<Application>()
+        context.startService(
+            Intent(context, AncsService::class.java)
+                .setAction(AncsService.ACTION_MEDIA_COMMAND)
+                .putExtra(AncsService.EXTRA_MEDIA_COMMAND, command.id)
+        )
+    }
+
+    /** The player is on screen (AMS ON_DEMAND mode subscribes only then). */
+    fun setMusicDemanded(wanted: Boolean) {
+        val context = getApplication<Application>()
+        context.startService(
+            Intent(context, AncsService::class.java)
+                .setAction(AncsService.ACTION_MUSIC_DEMAND)
+                .putExtra(AncsService.EXTRA_MUSIC_DEMANDED, wanted)
+        )
+    }
 
     /** Sends the iPhone action through the same path as the notification buttons. */
     fun performAction(entry: HistoryEntry, positive: Boolean) {

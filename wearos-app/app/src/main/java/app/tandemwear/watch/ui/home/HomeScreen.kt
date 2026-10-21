@@ -31,7 +31,9 @@ import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.OutlinedButton
 import androidx.wear.compose.material3.Text
 import app.tandemwear.watch.R
+import app.tandemwear.watch.ams.MusicSession
 import app.tandemwear.watch.data.history.HistoryEntry
+import app.tandemwear.watch.ui.music.MusicCard
 import app.tandemwear.watch.ui.components.ConnectionMark
 import app.tandemwear.watch.ui.components.TandemList
 import app.tandemwear.watch.ui.recent.EmptyRecent
@@ -46,13 +48,17 @@ fun HomeScreen(
     onPair: () -> Unit,
     onAbout: () -> Unit,
     onSettings: () -> Unit,
-    onOpenNotification: (Long) -> Unit
+    onOpenNotification: (Long) -> Unit,
+    onOpenPlayer: () -> Unit
 ) {
     val status by viewModel.homeStatus.collectAsState()
     val recent by viewModel.recent.collectAsState()
+    val music by viewModel.music.collectAsState()
     HomeContent(
         status = status,
         recent = recent,
+        music = music,
+        onOpenPlayer = onOpenPlayer,
         onOpenBluetooth = { viewModel.openBluetoothSettings() },
         onReconnect = { viewModel.startService() },
         onPair = onPair,
@@ -67,6 +73,8 @@ fun HomeScreen(
 fun HomeContent(
     status: HomeStatus,
     recent: List<HistoryEntry>,
+    music: MusicSession = MusicSession.NONE,
+    onOpenPlayer: () -> Unit = {},
     onOpenBluetooth: () -> Unit,
     onReconnect: () -> Unit,
     onPair: () -> Unit,
@@ -84,6 +92,11 @@ fun HomeContent(
                 onReconnect = onReconnect,
                 onPair = onPair
             )
+        }
+
+        // Music card only while an app is the iPhone's now-playing app
+        if (music.hasPlayer) {
+            item { MusicCard(music, onOpenPlayer) }
         }
 
         item { ListHeader(modifier = Modifier.semantics { heading() }) { Text(stringResource(R.string.recent_title), fontSize = TandemType.label) } }

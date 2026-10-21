@@ -2,6 +2,7 @@ package app.tandemwear.watch.ui.nav
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -13,6 +14,7 @@ import app.tandemwear.watch.ui.about.AboutScreen
 import app.tandemwear.watch.ui.about.LicensesScreen
 import app.tandemwear.watch.ui.home.HomeScreen
 import app.tandemwear.watch.ui.home.HomeStatus
+import app.tandemwear.watch.ui.music.PlayerScreen
 import app.tandemwear.watch.ui.pairing.PairScreen
 import app.tandemwear.watch.ui.recent.NotificationDetailScreen
 import app.tandemwear.watch.ui.settings.AppSettingsScreen
@@ -41,6 +43,7 @@ object Routes {
     const val QUIET_TIME = "quiet/{edge}"
     fun quietTime(edge: QuietEdge) = "quiet/" + edge.name
     const val PRIVACY = "privacy"
+    const val PLAYER = "player"
 }
 
 /**
@@ -60,7 +63,8 @@ fun TandemNavHost(viewModel: MainViewModel) {
                     onPair = { navController.navigate(Routes.PAIR) },
                     onAbout = { navController.navigate(Routes.ABOUT) },
                     onSettings = { navController.navigate(Routes.SETTINGS) },
-                    onOpenNotification = { navController.navigate(Routes.detail(it)) }
+                    onOpenNotification = { navController.navigate(Routes.detail(it)) },
+                    onOpenPlayer = { navController.navigate(Routes.PLAYER) }
                 )
             }
             composable(Routes.PAIR) {
@@ -73,6 +77,14 @@ fun TandemNavHost(viewModel: MainViewModel) {
                 )
             }
             composable(Routes.LICENSES) { LicensesScreen() }
+            composable(Routes.PLAYER) {
+                val music by viewModel.music.collectAsState()
+                DisposableEffect(Unit) {
+                    viewModel.setMusicDemanded(true)
+                    onDispose { viewModel.setMusicDemanded(false) }
+                }
+                PlayerScreen(music, musicEnabled = true, onCommand = { viewModel.sendMediaCommand(it) })
+            }
             composable(Routes.SETTINGS) {
                 val status by viewModel.homeStatus.collectAsState()
                 SettingsScreen(

@@ -9,6 +9,8 @@ import app.tandemwear.watch.ui.about.LicensesScreen
 import app.tandemwear.watch.ui.home.AmbientScreen
 import app.tandemwear.watch.ui.home.HomeContent
 import app.tandemwear.watch.ui.home.HomeStatus
+import app.tandemwear.watch.ui.music.PlayerContent
+import app.tandemwear.watch.ui.music.PlayerModel
 import app.tandemwear.watch.ui.recent.NotificationDetailScreen
 import app.tandemwear.watch.ui.theme.TandemWearTheme
 import kotlinx.coroutines.flow.flowOf
@@ -88,3 +90,21 @@ private fun LicensesPreview() = Frame { LicensesScreen() }
 @Preview(device = DEVICE, showSystemUi = true)
 @Composable
 private fun AmbientPreview() = Frame { AmbientScreen(HomeStatus.Connected("iPhone"), burnInProtection = true, shiftStep = 2) }
+
+private val samplePlaying = PlayerModel.Playing(
+    appName = "Spotify", title = "Labios compartidos", artist = "Maná", album = "Amar es combatir",
+    isPlaying = true, positionSeconds = 83f, durationSeconds = 301f, volume = 0.6f,
+    canTogglePlay = true, canPrevious = true, canNext = true, canVolume = true
+)
+
+@Preview(device = DEVICE, showSystemUi = true)
+@Composable
+private fun PlayerPlayingPreview() = Frame { PlayerContent(samplePlaying, onCommand = {}) }
+
+@Preview(device = DEVICE, showSystemUi = true, locale = "es")
+@Composable
+private fun PlayerNothingPlayingPreview() = Frame { PlayerContent(PlayerModel.NothingPlaying, onCommand = {}) }
+
+@Preview(device = DEVICE, showSystemUi = true, fontScale = 1.3f)
+@Composable
+private fun PlayerLargeFontPreview() = Frame { PlayerContent(samplePlaying.copy(isPlaying = false), onCommand = {}) }
