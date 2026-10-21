@@ -20,6 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Query Maven metadata
         run: |
           google() {
@@ -86,7 +89,7 @@ jobs:
 
       - name: Print API signatures
         run: |
-          sig() { echo "######## $1 / $2"; python3 .github/scripts/api_signatures.py "sources/$1-sources.jar" "$2"; }
+          sig() { echo "######## $1 / $2"; python3 .github/scripts/api_signatures.py "sources/$1-sources.jar" "$2" || true; }
           sig compose-material3-1.6.2 '^(AppScaffold|ScreenScaffold|EdgeButton|Button|ButtonDefaults|Card|ListHeader|SwitchButton|TimePicker|AlertDialog|Confirmation|IconButton|TimeText|ScrollIndicator|SwipeToReveal|Text|Icon|MaterialTheme|ColorScheme|Typography|ProgressIndicator|CircularProgressIndicator|Placeholder)\.kt$'
           sig compose-foundation-1.6.2 '^(TransformingLazyColumn|TransformingLazyColumnState|ScalingLazyColumn|ScalingLazyListState|SwipeToDismissBox|BasicSwipeToDismissBox)\.kt$'
           sig compose-navigation-1.6.2 '\.kt$'
