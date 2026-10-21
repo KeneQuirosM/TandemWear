@@ -13,6 +13,7 @@ import android.telecom.PhoneAccount
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import android.util.Log
+import app.tandemwear.watch.R
 
 /**
  * ConnectionService that integrates ANCS incoming calls with Android's Telecom framework.
@@ -47,7 +48,7 @@ class AncsConnectionService : ConnectionService() {
          */
         fun registerPhoneAccount(context: Context) {
             val handle = getPhoneAccountHandle(context)
-            val account = PhoneAccount.builder(handle, "TandemWear")
+            val account = PhoneAccount.builder(handle, context.getString(R.string.app_name))
                 .setCapabilities(PhoneAccount.CAPABILITY_SELF_MANAGED)
                 .build()
 
@@ -97,8 +98,8 @@ class AncsConnectionService : ConnectionService() {
     ): Connection {
         val extras = request?.extras ?: Bundle()
         val uid = extras.getLong(EXTRA_NOTIFICATION_UID, -1)
-        val callerName = extras.getString(EXTRA_CALLER_NAME, "Incoming Call")
-        val appName = extras.getString(EXTRA_APP_NAME, "Phone")
+        val callerName = extras.getString(EXTRA_CALLER_NAME, getString(R.string.call_incoming))
+        val appName = extras.getString(EXTRA_APP_NAME, getString(R.string.call_default_app))
 
         Log.i(TAG, "onCreateIncomingConnection: caller='$callerName' uid=$uid app='$appName'")
 

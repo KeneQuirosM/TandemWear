@@ -25,12 +25,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.Icon
@@ -39,6 +38,8 @@ import app.tandemwear.watch.R
 import app.tandemwear.watch.ancs.AncsService
 import app.tandemwear.watch.ancs.NotificationActionReceiver
 import app.tandemwear.watch.ble.AncsConstants
+import app.tandemwear.watch.ui.theme.TandemColors
+import app.tandemwear.watch.ui.theme.TandemType
 import app.tandemwear.watch.ui.theme.TandemWearTheme
 
 /**
@@ -63,7 +64,7 @@ class IncomingCallActivity : ComponentActivity() {
     }
 
     private var notificationUid: Long = -1
-    private var callerNameState = mutableStateOf("Unknown Caller")
+    private var callerNameState = mutableStateOf("")
     /** true = call was answered on iPhone, show "Active on iPhone" UI */
     private var callAnsweredOnPhone = mutableStateOf(false)
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -102,8 +103,8 @@ class IncomingCallActivity : ComponentActivity() {
         // Keep screen on while call screen is showing
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        callerNameState.value = intent.getStringExtra(EXTRA_CALLER_NAME) ?: "Unknown Caller"
-        val appName = intent.getStringExtra(EXTRA_APP_NAME) ?: "Phone"
+        callerNameState.value = intent.getStringExtra(EXTRA_CALLER_NAME) ?: getString(R.string.call_unknown_caller)
+        val appName = intent.getStringExtra(EXTRA_APP_NAME) ?: getString(R.string.call_default_app)
         notificationUid = intent.getLongExtra(EXTRA_NOTIFICATION_UID, -1)
 
         val filter = IntentFilter().apply {
@@ -179,8 +180,8 @@ fun IncomingCallScreen(
     ) {
         Text(
             text = appName,
-            fontSize = 12.sp,
-            color = Color.Gray,
+            fontSize = TandemType.label,
+            color = TandemColors.textMuted,
             textAlign = TextAlign.Center
         )
 
@@ -188,7 +189,7 @@ fun IncomingCallScreen(
 
         Text(
             text = callerName,
-            fontSize = 18.sp,
+            fontSize = TandemType.callerName,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             maxLines = 2
@@ -197,9 +198,9 @@ fun IncomingCallScreen(
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = "Incoming Call",
-            fontSize = 12.sp,
-            color = Color.Gray,
+            text = stringResource(R.string.call_incoming),
+            fontSize = TandemType.label,
+            color = TandemColors.textMuted,
             textAlign = TextAlign.Center
         )
 
@@ -214,17 +215,17 @@ fun IncomingCallScreen(
             // Decline button (red) — Lucide phone-off
             Button(
                 onClick = onDecline,
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(56.dp),
                 shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFEF4444)
+                    containerColor = TandemColors.decline
                 )
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_call_decline),
-                    contentDescription = "Decline",
-                    modifier = Modifier.size(22.dp),
-                    tint = Color.White
+                    contentDescription = stringResource(R.string.call_decline),
+                    modifier = Modifier.size(24.dp),
+                    tint = TandemColors.onDecline
                 )
             }
 
@@ -233,17 +234,17 @@ fun IncomingCallScreen(
             // Answer button (green) — Lucide phone
             Button(
                 onClick = onAnswer,
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(56.dp),
                 shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF22C55E)
+                    containerColor = TandemColors.accept
                 )
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_call_answer),
-                    contentDescription = "Answer",
-                    modifier = Modifier.size(22.dp),
-                    tint = Color.White
+                    contentDescription = stringResource(R.string.call_answer),
+                    modifier = Modifier.size(24.dp),
+                    tint = TandemColors.onAccept
                 )
             }
         }
@@ -266,14 +267,14 @@ fun CallActiveOnPhoneScreen(
             painter = painterResource(id = R.drawable.ic_call_answer),
             contentDescription = null,
             modifier = Modifier.size(28.dp),
-            tint = Color(0xFF22C55E)
+            tint = TandemColors.success
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
             text = callerName,
-            fontSize = 16.sp,
+            fontSize = TandemType.callerName,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             maxLines = 2
@@ -282,9 +283,9 @@ fun CallActiveOnPhoneScreen(
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = "Active on iPhone",
-            fontSize = 12.sp,
-            color = Color(0xFF22C55E),
+            text = stringResource(R.string.call_active_on_iphone),
+            fontSize = TandemType.label,
+            color = TandemColors.success,
             textAlign = TextAlign.Center
         )
 
@@ -294,10 +295,10 @@ fun CallActiveOnPhoneScreen(
             onClick = onDismiss,
             modifier = Modifier.fillMaxWidth(0.6f),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF374151)
+                containerColor = TandemColors.surfaceButton
             )
         ) {
-            Text("Dismiss", fontSize = 13.sp)
+            Text(stringResource(R.string.action_dismiss), fontSize = TandemType.body)
         }
     }
 }

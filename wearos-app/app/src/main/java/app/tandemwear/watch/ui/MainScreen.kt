@@ -1,9 +1,7 @@
 package app.tandemwear.watch.ui
 
 import android.annotation.SuppressLint
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,7 +11,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.PhoneIphone
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -23,23 +25,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.CircularProgressIndicator
+import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.Text
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.PhoneIphone
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Close
-import androidx.wear.compose.material3.Icon
+import app.tandemwear.watch.R
 import app.tandemwear.watch.model.ConnectionState
+import app.tandemwear.watch.ui.theme.TandemColors
+import app.tandemwear.watch.ui.theme.TandemType
 import app.tandemwear.watch.viewmodel.MainViewModel
 
 @SuppressLint("MissingPermission")
@@ -64,20 +65,21 @@ fun MainScreen(viewModel: MainViewModel) {
 @Composable
 fun HomeScreen(viewModel: MainViewModel, onPairNewDevice: () -> Unit) {
     val connectionState by viewModel.connectionState.collectAsState()
+    val defaultPhoneName = stringResource(R.string.default_phone_name)
 
     ScalingLazyColumn(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         item {
-            ListHeader {
-                Text("TandemWear")
+            ListHeader(modifier = Modifier.semantics { heading() }) {
+                Text(stringResource(R.string.app_name))
             }
         }
 
-        when (connectionState) {
+        when (val state = connectionState) {
             is ConnectionState.Connected -> {
-                val deviceName = (connectionState as ConnectionState.Connected).deviceName ?: "iPhone"
+                val deviceName = state.deviceName ?: defaultPhoneName
 
                 // Status
                 item {
@@ -91,16 +93,16 @@ fun HomeScreen(viewModel: MainViewModel, onPairNewDevice: () -> Unit) {
                         Icon(
                             Icons.Rounded.CheckCircle,
                             contentDescription = null,
-                            tint = Color(0xFF34D399),
+                            tint = TandemColors.success,
                             modifier = Modifier.size(22.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Column {
-                            Text("Connected", fontSize = 14.sp)
+                            Text(stringResource(R.string.status_connected), fontSize = TandemType.title)
                             Text(
-                                "Notifications active",
-                                fontSize = 11.sp,
-                                color = Color(0xFF34D399)
+                                stringResource(R.string.status_notifications_active),
+                                fontSize = TandemType.caption,
+                                color = TandemColors.success
                             )
                         }
                     }
@@ -117,16 +119,16 @@ fun HomeScreen(viewModel: MainViewModel, onPairNewDevice: () -> Unit) {
                         Icon(
                             Icons.Rounded.PhoneIphone,
                             contentDescription = null,
-                            tint = Color(0xFF60A5FA),
+                            tint = TandemColors.primary,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Column {
-                            Text(deviceName, fontSize = 14.sp)
+                            Text(deviceName, fontSize = TandemType.title)
                             Text(
-                                "via ANCS over BLE",
-                                fontSize = 11.sp,
-                                color = Color(0xFF9CA3AF)
+                                stringResource(R.string.status_via_ancs),
+                                fontSize = TandemType.caption,
+                                color = TandemColors.textMuted
                             )
                         }
                     }
@@ -140,7 +142,7 @@ fun HomeScreen(viewModel: MainViewModel, onPairNewDevice: () -> Unit) {
                         onClick = { viewModel.clearAllNotifications() },
                         modifier = Modifier.fillMaxWidth(0.9f)
                     ) {
-                        Text("Clear Notifications", fontSize = 12.sp)
+                        Text(stringResource(R.string.action_clear_notifications), fontSize = TandemType.label)
                     }
                 }
 
@@ -152,10 +154,14 @@ fun HomeScreen(viewModel: MainViewModel, onPairNewDevice: () -> Unit) {
                         onClick = { viewModel.disconnect() },
                         modifier = Modifier.fillMaxWidth(0.9f),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFEF4444)
+                            containerColor = TandemColors.decline
                         )
                     ) {
-                        Text("Disconnect", fontSize = 12.sp, color = Color.White)
+                        Text(
+                            stringResource(R.string.action_disconnect),
+                            fontSize = TandemType.label,
+                            color = TandemColors.onDecline
+                        )
                     }
                 }
             }
@@ -169,15 +175,16 @@ fun HomeScreen(viewModel: MainViewModel, onPairNewDevice: () -> Unit) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp))
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            when (connectionState) {
-                                is ConnectionState.Connecting ->
-                                    "Connecting to ${(connectionState as ConnectionState.Connecting).deviceName ?: "iPhone"}…"
-                                is ConnectionState.Bonding ->
-                                    "Pairing with ${(connectionState as ConnectionState.Bonding).deviceName ?: "iPhone"}…"
-                                else -> "Connecting…"
+                            if (state is ConnectionState.Bonding) {
+                                stringResource(R.string.status_pairing_with, state.deviceName ?: defaultPhoneName)
+                            } else {
+                                stringResource(
+                                    R.string.status_connecting_to,
+                                    (state as ConnectionState.Connecting).deviceName ?: defaultPhoneName
+                                )
                             },
                             textAlign = TextAlign.Center,
-                            fontSize = 13.sp
+                            fontSize = TandemType.body
                         )
                     }
                 }
@@ -185,55 +192,30 @@ fun HomeScreen(viewModel: MainViewModel, onPairNewDevice: () -> Unit) {
 
             else -> {
                 // Idle / Disconnected / Error / RepairNeeded — show reconnect or pair
-                val repairNeeded = connectionState is ConnectionState.RepairNeeded
+                val repairNeeded = state is ConnectionState.RepairNeeded
 
                 if (repairNeeded) {
                     item {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Icon(
-                                Icons.Rounded.PhoneIphone,
-                                contentDescription = null,
-                                tint = Color(0xFFF6C98A),
-                                modifier = Modifier.size(28.dp)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                "Your iPhone forgot this watch",
-                                textAlign = TextAlign.Center,
-                                fontSize = 14.sp
-                            )
-                            Text(
-                                "Pair again. If the watch still lists the iPhone in its Bluetooth settings, unpair it there first.",
-                                textAlign = TextAlign.Center,
-                                fontSize = 11.sp,
-                                color = Color(0xFF9CA3AF)
-                            )
-                        }
+                        StatusBlock(
+                            iconTint = TandemColors.warning,
+                            title = stringResource(R.string.repair_title),
+                            body = stringResource(R.string.repair_body)
+                        )
                     }
                 } else if (viewModel.hasPairedIPhone()) {
                     // Has a bonded device — show reconnecting state
                     item {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Icon(
-                                Icons.Rounded.PhoneIphone,
-                                contentDescription = null,
-                                tint = Color(0xFF9CA3AF),
-                                modifier = Modifier.size(28.dp)
+                        if (state is ConnectionState.Error) {
+                            StatusBlock(
+                                iconTint = TandemColors.textMuted,
+                                title = stringResource(R.string.status_error_generic),
+                                body = state.message
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                if (connectionState is ConnectionState.Error)
-                                    (connectionState as ConnectionState.Error).message
-                                else "iPhone not in range",
-                                textAlign = TextAlign.Center,
-                                fontSize = 13.sp,
-                                color = Color(0xFF9CA3AF)
+                        } else {
+                            StatusBlock(
+                                iconTint = TandemColors.textMuted,
+                                title = stringResource(R.string.status_not_in_range),
+                                body = null
                             )
                         }
                     }
@@ -243,7 +225,7 @@ fun HomeScreen(viewModel: MainViewModel, onPairNewDevice: () -> Unit) {
                             onClick = { viewModel.startService() },
                             modifier = Modifier.fillMaxWidth(0.9f)
                         ) {
-                            Text("Reconnect", fontSize = 12.sp)
+                            Text(stringResource(R.string.action_reconnect), fontSize = TandemType.label)
                         }
                     }
 
@@ -251,39 +233,21 @@ fun HomeScreen(viewModel: MainViewModel, onPairNewDevice: () -> Unit) {
                 } else {
                     // No bonded device — prompt to pair
                     item {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Icon(
-                                Icons.Rounded.PhoneIphone,
-                                contentDescription = null,
-                                tint = Color(0xFF9CA3AF),
-                                modifier = Modifier.size(32.dp)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                "No iPhone paired",
-                                fontSize = 14.sp,
-                                textAlign = TextAlign.Center
-                            )
-                            Text(
-                                "Pair your iPhone to start receiving notifications",
-                                fontSize = 11.sp,
-                                color = Color(0xFF9CA3AF),
-                                textAlign = TextAlign.Center
-                            )
-                        }
+                        StatusBlock(
+                            iconTint = TandemColors.textMuted,
+                            title = stringResource(R.string.no_iphone_title),
+                            body = stringResource(R.string.no_iphone_body)
+                        )
                     }
                 }
 
-                // Always show Pair New Device button
+                // Always show the Pair button
                 item {
                     Button(
                         onClick = onPairNewDevice,
                         modifier = Modifier.fillMaxWidth(0.9f),
                         colors = if (viewModel.hasPairedIPhone() && !repairNeeded)
-                            ButtonDefaults.buttonColors(containerColor = Color(0xFF374151))
+                            ButtonDefaults.buttonColors(containerColor = TandemColors.surfaceButton)
                         else ButtonDefaults.buttonColors()
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -293,11 +257,37 @@ fun HomeScreen(viewModel: MainViewModel, onPairNewDevice: () -> Unit) {
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Pair New Device", fontSize = 12.sp)
+                            Text(stringResource(R.string.action_pair_iphone), fontSize = TandemType.label)
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+/** Icon + title + optional explanation, centered. */
+@Composable
+private fun StatusBlock(iconTint: androidx.compose.ui.graphics.Color, title: String, body: String?) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(16.dp)
+    ) {
+        Icon(
+            Icons.Rounded.PhoneIphone,
+            contentDescription = null,
+            tint = iconTint,
+            modifier = Modifier.size(28.dp)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(title, textAlign = TextAlign.Center, fontSize = TandemType.title)
+        if (body != null) {
+            Text(
+                body,
+                textAlign = TextAlign.Center,
+                fontSize = TandemType.caption,
+                color = TandemColors.textMuted
+            )
         }
     }
 }
@@ -321,28 +311,30 @@ fun PairNewDeviceScreen(viewModel: MainViewModel, onDismiss: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         item {
-            ListHeader {
-                Text("Pair iPhone")
+            ListHeader(modifier = Modifier.semantics { heading() }) {
+                Text(stringResource(R.string.pair_title))
             }
         }
 
         item {
             Text(
-                "On your iPhone open Settings › Bluetooth and tap \"${viewModel.watchName}\".",
+                stringResource(R.string.pair_instructions, viewModel.watchName),
                 textAlign = TextAlign.Center,
-                fontSize = 13.sp,
+                fontSize = TandemType.body,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             )
         }
 
         item {
-            val (showSpinner, status) = when (val state = connectionState) {
-                is ConnectionState.WaitingForIphone -> true to "Visible to the iPhone…"
-                is ConnectionState.Connecting -> true to "iPhone found, connecting…"
-                is ConnectionState.Bonding -> true to "Accept the pairing request on the iPhone (and on the watch if asked)"
-                is ConnectionState.Error -> false to state.message
-                is ConnectionState.RepairNeeded -> false to state.reason
-                else -> true to "Starting…"
+            val state = connectionState
+            val showSpinner = state !is ConnectionState.Error && state !is ConnectionState.RepairNeeded
+            val status = when (state) {
+                is ConnectionState.WaitingForIphone -> stringResource(R.string.pair_status_visible)
+                is ConnectionState.Connecting -> stringResource(R.string.pair_status_connecting)
+                is ConnectionState.Bonding -> stringResource(R.string.pair_status_bonding)
+                is ConnectionState.Error -> stringResource(R.string.status_error_generic) + "\n" + state.message
+                is ConnectionState.RepairNeeded -> stringResource(R.string.repair_title)
+                else -> stringResource(R.string.pair_status_starting)
             }
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -355,18 +347,18 @@ fun PairNewDeviceScreen(viewModel: MainViewModel, onDismiss: () -> Unit) {
                 Text(
                     status,
                     textAlign = TextAlign.Center,
-                    fontSize = 12.sp,
-                    color = Color(0xFF9CA3AF)
+                    fontSize = TandemType.label,
+                    color = TandemColors.textMuted
                 )
             }
         }
 
         item {
             Text(
-                "Then, in Settings › Bluetooth › (i) next to the watch, turn on Share System Notifications.",
+                stringResource(R.string.pair_share_notifications),
                 textAlign = TextAlign.Center,
-                fontSize = 11.sp,
-                color = Color(0xFF9CA3AF),
+                fontSize = TandemType.caption,
+                color = TandemColors.textMuted,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             )
         }
@@ -377,7 +369,7 @@ fun PairNewDeviceScreen(viewModel: MainViewModel, onDismiss: () -> Unit) {
                     onClick = { viewModel.startPairing() },
                     modifier = Modifier.fillMaxWidth(0.9f)
                 ) {
-                    Text("Try again", fontSize = 12.sp)
+                    Text(stringResource(R.string.action_try_again), fontSize = TandemType.label)
                 }
             }
         }
@@ -390,7 +382,7 @@ fun PairNewDeviceScreen(viewModel: MainViewModel, onDismiss: () -> Unit) {
                 onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth(0.9f),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF374151)
+                    containerColor = TandemColors.surfaceButton
                 )
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -400,7 +392,7 @@ fun PairNewDeviceScreen(viewModel: MainViewModel, onDismiss: () -> Unit) {
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Back", fontSize = 12.sp)
+                    Text(stringResource(R.string.action_back), fontSize = TandemType.label)
                 }
             }
         }

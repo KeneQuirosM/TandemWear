@@ -1,21 +1,70 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Default (fallback) language: English. Spanish lives in values-es/strings.xml;
+     StringResourcesTest checks both files define the same keys. -->
 <resources>
-    <string name="app_name">TandemWear</string>
-    <string name="scan_for_iphone">Scan for iPhone</string>
-    <string name="scanning">Scanning…</string>
-    <string name="connecting">Connecting…</string>
-    <string name="connected">Connected</string>
-    <string name="disconnected">Disconnected</string>
-    <string name="bonding">Pairing…</string>
-    <string name="tap_to_pair">Tap to pair</string>
-    <string name="unpair">Unpair</string>
-    <string name="settings">Settings</string>
-    <string name="answer">Answer</string>
-    <string name="decline">Decline</string>
-    <string name="incoming_call">Incoming Call</string>
-    <string name="unknown_caller">Unknown Caller</string>
-    <string name="no_devices_found">No devices found</string>
-    <string name="bluetooth_required">Bluetooth is required</string>
-    <string name="notification_action_positive">Accept</string>
-    <string name="notification_action_negative">Dismiss</string>
+    <string name="app_name" translatable="false">TandemWear</string>
+    <string name="default_phone_name" translatable="false">iPhone</string>
+
+    <!-- Home -->
+    <string name="status_connected">Connected</string>
+    <string name="status_notifications_active">Notifications active</string>
+    <string name="status_via_ancs">via ANCS over Bluetooth</string>
+    <string name="status_connecting_to">Connecting to %1$s…</string>
+    <string name="status_pairing_with">Pairing with %1$s…</string>
+    <string name="status_not_in_range">iPhone not in range</string>
+    <string name="status_error_generic">Couldn\'t connect</string>
+    <string name="repair_title">Your iPhone forgot this watch</string>
+    <string name="repair_body">Pair again. If the watch still lists the iPhone in its Bluetooth settings, unpair it there first.</string>
+    <string name="no_iphone_title">No iPhone paired</string>
+    <string name="no_iphone_body">Pair your iPhone to start receiving its notifications</string>
+    <string name="action_clear_notifications">Clear notifications</string>
+    <string name="action_disconnect">Disconnect</string>
+    <string name="action_reconnect">Reconnect</string>
+    <string name="action_pair_iphone">Pair iPhone</string>
+    <string name="action_try_again">Try again</string>
+    <string name="action_back">Back</string>
+    <string name="action_dismiss">Dismiss</string>
+
+    <!-- Pairing -->
+    <string name="pair_title">Pair iPhone</string>
+    <string name="pair_instructions">On your iPhone open Settings › Bluetooth and tap “%1$s”.</string>
+    <string name="pair_status_visible">Visible to the iPhone…</string>
+    <string name="pair_status_connecting">iPhone found, connecting…</string>
+    <string name="pair_status_bonding">Accept the pairing request on the iPhone (and on the watch if asked)</string>
+    <string name="pair_status_starting">Starting…</string>
+    <string name="pair_status_timeout">The iPhone didn\'t connect. Try again.</string>
+    <string name="pair_share_notifications">Then, in Settings › Bluetooth › (i) next to the watch, turn on Share System Notifications.</string>
+
+    <!-- Calls -->
+    <string name="call_incoming">Incoming call</string>
+    <string name="call_unknown_caller">Unknown caller</string>
+    <string name="call_default_app">Phone</string>
+    <string name="call_answer">Answer</string>
+    <string name="call_decline">Decline</string>
+    <string name="call_active_on_iphone">Active on iPhone</string>
+
+    <!-- Foreground service notification -->
+    <string name="service_status_starting">Starting…</string>
+    <string name="service_status_idle">Idle</string>
+    <string name="service_status_waiting">Waiting for the iPhone to pair…</string>
+    <string name="service_status_connected_to">Connected to %1$s</string>
+    <string name="service_status_disconnected">Disconnected</string>
+    <string name="service_status_repair">Pair the iPhone again</string>
+    <string name="service_status_error">Error: %1$s</string>
+
+    <!-- Notification channels (shown in the watch's notification settings) -->
+    <string name="channel_service">Connection to iPhone</string>
+    <string name="channel_service_desc">Keeps the Bluetooth connection to the iPhone in the background</string>
+    <string name="channel_calls">Incoming calls</string>
+    <string name="channel_calls_desc">Calls ringing on the iPhone</string>
+    <string name="channel_messages">Messages</string>
+    <string name="channel_messages_desc">iMessage, WhatsApp and other messaging apps</string>
+    <string name="channel_email">Email</string>
+    <string name="channel_email_desc">Email notifications</string>
+    <string name="channel_social">Social</string>
+    <string name="channel_social_desc">Social media notifications</string>
+    <string name="channel_schedule">Schedule and alarms</string>
+    <string name="channel_schedule_desc">Calendar reminders, alarms and timers from the iPhone</string>
+    <string name="channel_other">Other</string>
+    <string name="channel_other_desc">Other notifications</string>
 </resources>

@@ -65,14 +65,16 @@ Se compila en CI (GitHub Actions) en cada push. Wear OS 6 agrupa los eventos de 
 
 Al terminar entrego el resumen, los comandos y las pruebas manuales en el Galaxy Watch 4.
 
-## Decisiones que necesito de ti
+## Decisiones (21-10-2026)
 
-1. **Historial de recientes:**
-   - (a) guardarlo en el reloj con Room (sobrevive a reinicios; guarda texto de mensajes en el reloj), o
-   - (b) solo en memoria (se pierde al reiniciar; más privado).
-   Propongo **(a) con las últimas 50, borrado al desemparejar y una opción para desactivarlo**.
-2. **Vibración por categoría:** los canales de Android ya permiten elegir la vibración por categoría desde los ajustes del sistema.
-   - (a) usar los canales del sistema (simple y estable), o
-   - (b) patrones propios por app con el Vibrator, lo que obliga a quitar la vibración de los canales y crear canales nuevos (`_v8`).
-   Propongo **(a)**, más un ajuste «silenciar esta app».
-3. **Idioma:** el texto sigue al idioma del sistema, con inglés como respaldo. ¿Quieres el español como respaldo en su lugar?
+1. **Historial:** se guarda en el reloj (Room), con las últimas 50; se borra al desemparejar y se puede desactivar en Ajustes. Las notificaciones viejas se **conservan** en el reloj al reconectar.
+2. **Vibración:** se usan los ajustes del sistema por categoría (canales), más un «Silenciar esta app».
+3. **Idioma de respaldo:** inglés.
+
+## Estado
+
+- **2.1 hecho:**
+  - tema oscuro con la paleta del mockup (`TandemColors`) y tamaños en `sp` (`TandemType`);
+  - todos los textos de la UI, de la notificación del servicio, de los canales y de Telecom están en `values/strings.xml` (inglés) y `values-es/strings.xml`;
+  - `StringResourcesTest` verifica que ambos idiomas tengan las mismas claves y los mismos marcadores, y que la UI no tenga textos fijos;
+  - excepción: los mensajes de error que genera la capa BLE (`ConnectionState.Error`) siguen en inglés. La UI los muestra bajo un título traducido («No se pudo conectar»). Traducirlos requiere códigos de error en `BleConnectionManager`; queda para cuando se pueda tocar esa capa.

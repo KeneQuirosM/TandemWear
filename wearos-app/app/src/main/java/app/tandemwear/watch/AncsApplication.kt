@@ -39,61 +39,61 @@ class AncsApplication : Application() {
         val channels = listOf(
             NotificationChannel(
                 CHANNEL_SERVICE,
-                "TandemWear Service",
+                getString(R.string.channel_service),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Background connection to iPhone"
+                description = getString(R.string.channel_service_desc)
             },
 
             NotificationChannel(
                 CHANNEL_INCOMING_CALL,
-                "Incoming Calls",
+                getString(R.string.channel_calls),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Incoming phone calls from iPhone"
+                description = getString(R.string.channel_calls_desc)
                 setBypassDnd(true)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             },
 
             NotificationChannel(
                 CHANNEL_MESSAGES,
-                "Messages",
+                getString(R.string.channel_messages),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "iMessage, WhatsApp, and other messaging apps"
+                description = getString(R.string.channel_messages_desc)
             },
 
             NotificationChannel(
                 CHANNEL_EMAIL,
-                "Email",
+                getString(R.string.channel_email),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Email notifications"
+                description = getString(R.string.channel_email_desc)
             },
 
             NotificationChannel(
                 CHANNEL_SOCIAL,
-                "Social",
+                getString(R.string.channel_social),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Social media notifications"
+                description = getString(R.string.channel_social_desc)
             },
 
             NotificationChannel(
                 CHANNEL_SCHEDULE,
-                "Schedule & Alarms",
+                getString(R.string.channel_schedule),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Calendar reminders, alarms, and timers from iPhone"
+                description = getString(R.string.channel_schedule_desc)
                 setBypassDnd(true)
             },
 
             NotificationChannel(
                 CHANNEL_OTHER,
-                "Other",
+                getString(R.string.channel_other),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Other notifications"
+                description = getString(R.string.channel_other_desc)
             }
         )
 

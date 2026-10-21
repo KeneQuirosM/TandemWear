@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Inicio -->
+    <string name="status_connected">Conectado</string>
+    <string name="status_notifications_active">Notificaciones activas</string>
+    <string name="status_via_ancs">vía ANCS por Bluetooth</string>
+    <string name="status_connecting_to">Conectando con %1$s…</string>
+    <string name="status_pairing_with">Emparejando con %1$s…</string>
+    <string name="status_not_in_range">iPhone fuera de alcance</string>
+    <string name="status_error_generic">No se pudo conectar</string>
+    <string name="repair_title">Tu iPhone olvidó este reloj</string>
+    <string name="repair_body">Empareja de nuevo. Si el reloj aún muestra el iPhone en sus ajustes de Bluetooth, desvincúlalo ahí primero.</string>
+    <string name="no_iphone_title">No hay iPhone emparejado</string>
+    <string name="no_iphone_body">Empareja tu iPhone para recibir sus notificaciones</string>
+    <string name="action_clear_notifications">Borrar notificaciones</string>
+    <string name="action_disconnect">Desconectar</string>
+    <string name="action_reconnect">Reconectar</string>
+    <string name="action_pair_iphone">Emparejar iPhone</string>
+    <string name="action_try_again">Reintentar</string>
+    <string name="action_back">Atrás</string>
+    <string name="action_dismiss">Cerrar</string>
+
+    <!-- Emparejamiento -->
+    <string name="pair_title">Emparejar iPhone</string>
+    <string name="pair_instructions">En tu iPhone abre Ajustes › Bluetooth y toca «%1$s».</string>
+    <string name="pair_status_visible">Visible para el iPhone…</string>
+    <string name="pair_status_connecting">iPhone encontrado, conectando…</string>
+    <string name="pair_status_bonding">Acepta la solicitud de enlace en el iPhone (y en el reloj si la pide)</string>
+    <string name="pair_status_starting">Iniciando…</string>
+    <string name="pair_status_timeout">El iPhone no se conectó. Inténtalo de nuevo.</string>
+    <string name="pair_share_notifications">Después, en Ajustes › Bluetooth › (i) junto al reloj, activa Compartir notificaciones del sistema.</string>
+
+    <!-- Llamadas -->
+    <string name="call_incoming">Llamada entrante</string>
+    <string name="call_unknown_caller">Desconocido</string>
+    <string name="call_default_app">Teléfono</string>
+    <string name="call_answer">Contestar</string>
+    <string name="call_decline">Rechazar</string>
+    <string name="call_active_on_iphone">En curso en el iPhone</string>
+
+    <!-- Notificación del servicio -->
+    <string name="service_status_starting">Iniciando…</string>
+    <string name="service_status_idle">Inactivo</string>
+    <string name="service_status_waiting">Esperando que el iPhone se empareje…</string>
+    <string name="service_status_connected_to">Conectado a %1$s</string>
+    <string name="service_status_disconnected">Desconectado</string>
+    <string name="service_status_repair">Empareja el iPhone de nuevo</string>
+    <string name="service_status_error">Error: %1$s</string>
+
+    <!-- Canales de notificación -->
+    <string name="channel_service">Conexión con el iPhone</string>
+    <string name="channel_service_desc">Mantiene la conexión Bluetooth con el iPhone en segundo plano</string>
+    <string name="channel_calls">Llamadas entrantes</string>
+    <string name="channel_calls_desc">Llamadas que suenan en el iPhone</string>
+    <string name="channel_messages">Mensajes</string>
+    <string name="channel_messages_desc">iMessage, WhatsApp y otras apps de mensajería</string>
+    <string name="channel_email">Correo</string>
+    <string name="channel_email_desc">Notificaciones de correo</string>
+    <string name="channel_social">Redes sociales</string>
+    <string name="channel_social_desc">Notificaciones de redes sociales</string>
+    <string name="channel_schedule">Agenda y alarmas</string>
+    <string name="channel_schedule_desc">Recordatorios, alarmas y temporizadores del iPhone</string>
+    <string name="channel_other">Otras</string>
+    <string name="channel_other_desc">Otras notificaciones</string>
+</resources>

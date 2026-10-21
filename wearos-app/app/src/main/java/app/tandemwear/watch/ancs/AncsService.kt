@@ -200,7 +200,7 @@ class AncsService : Service() {
         // This lets us show incoming calls via the system call UI
         AncsConnectionService.registerPhoneAccount(this)
 
-        startForeground(SERVICE_NOTIFICATION_ID, buildServiceNotification("Starting..."))
+        startForeground(SERVICE_NOTIFICATION_ID, buildServiceNotification(getString(R.string.service_status_starting)))
 
         // Listen for Notification Source events
         scope.launch {
@@ -233,15 +233,16 @@ class AncsService : Service() {
                     endAncsSession()
                 }
 
+                val phoneName = getString(R.string.default_phone_name)
                 val text = when (shown) {
-                    is ConnectionState.Idle -> "Idle"
-                    is ConnectionState.WaitingForIphone -> "Waiting for the iPhone to pair..."
-                    is ConnectionState.Connecting -> "Connecting to ${shown.deviceName ?: "iPhone"}..."
-                    is ConnectionState.Bonding -> "Pairing with ${shown.deviceName ?: "iPhone"}..."
-                    is ConnectionState.Connected -> "Connected to ${shown.deviceName ?: "iPhone"}"
-                    is ConnectionState.Disconnected -> "Disconnected"
-                    is ConnectionState.RepairNeeded -> "Pair the iPhone again"
-                    is ConnectionState.Error -> "Error: ${shown.message}"
+                    is ConnectionState.Idle -> getString(R.string.service_status_idle)
+                    is ConnectionState.WaitingForIphone -> getString(R.string.service_status_waiting)
+                    is ConnectionState.Connecting -> getString(R.string.status_connecting_to, shown.deviceName ?: phoneName)
+                    is ConnectionState.Bonding -> getString(R.string.status_pairing_with, shown.deviceName ?: phoneName)
+                    is ConnectionState.Connected -> getString(R.string.service_status_connected_to, shown.deviceName ?: phoneName)
+                    is ConnectionState.Disconnected -> getString(R.string.service_status_disconnected)
+                    is ConnectionState.RepairNeeded -> getString(R.string.service_status_repair)
+                    is ConnectionState.Error -> getString(R.string.service_status_error, shown.message)
                 }
                 notificationManager.notify(SERVICE_NOTIFICATION_ID, buildServiceNotification(text))
             }
@@ -336,7 +337,7 @@ class AncsService : Service() {
             pairingWindowJob = null
             updateAdvertising(connectionManager.connectionState.value)
             if (connectionManager.connectionState.value is ConnectionState.Idle) {
-                _sharedConnectionState.value = ConnectionState.Error("The iPhone didn't connect. Try again.")
+                _sharedConnectionState.value = ConnectionState.Error(getString(R.string.pair_status_timeout))
             }
         }
         DiagnosticsLog.log("pairing: window open (${PAIRING_WINDOW_MS / 1000} s)")
@@ -425,13 +426,13 @@ class AncsService : Service() {
                         categoryId = event.categoryId,
                         eventFlags = event.eventFlags,
                         appIdentifier = "com.apple.mobilephone",
-                        title = "Incoming Call",
+                        title = getString(R.string.call_incoming),
                         subtitle = null,
                         message = "",
                         date = null,
-                        appDisplayName = "Phone",
-                        positiveActionLabel = "Answer",
-                        negativeActionLabel = "Decline"
+                        appDisplayName = getString(R.string.call_default_app),
+                        positiveActionLabel = getString(R.string.call_answer),
+                        negativeActionLabel = getString(R.string.call_decline)
                     ))
                 }
 
@@ -716,13 +717,14 @@ class AncsService : Service() {
 
     @SuppressLint("WakelockTimeout")
     private fun showIncomingCall(notification: AncsNotification) {
-        val callerName = notification.title.ifEmpty { "Incoming Call" }
-        val appName = notification.appDisplayName ?: "Phone"
+        val placeholderTitle = getString(R.string.call_incoming)
+        val callerName = notification.title.ifEmpty { placeholderTitle }
+        val appName = notification.appDisplayName ?: getString(R.string.call_default_app)
 
         // Track active call UID to avoid duplicate showIncomingCall calls
         if (activeCallUid == notification.uid) {
             // Already showing — just update caller name if it changed
-            if (callerName != "Incoming Call") {
+            if (callerName != placeholderTitle) {
                 AncsConnectionService.activeConnection?.updateCallerName(callerName)
                 // Also update the IncomingCallActivity via broadcast
                 sendBroadcast(Intent(IncomingCallActivity.ACTION_CALLER_NAME_UPDATED).apply {
