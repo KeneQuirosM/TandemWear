@@ -7,6 +7,7 @@ import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.LinkOff
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -57,6 +58,16 @@ fun SettingsScreen(
                     onQuietHours
                 )
             }
+        }
+        item {
+            SwitchButton(
+                checked = settings.musicEnabled,
+                onCheckedChange = { viewModel.setMusicEnabled(it) },
+                modifier = Modifier.fillMaxWidth(),
+                icon = { Icon(Icons.Rounded.MusicNote, contentDescription = null) },
+                secondaryLabel = { Text(stringResource(R.string.settings_music_desc), fontSize = TandemType.caption) },
+                label = { Text(stringResource(R.string.settings_music), fontSize = TandemType.label) }
+            )
         }
         if (onPrivacy != null) {
             item { NavButton(Icons.Rounded.Lock, stringResource(R.string.settings_privacy), null, onPrivacy) }

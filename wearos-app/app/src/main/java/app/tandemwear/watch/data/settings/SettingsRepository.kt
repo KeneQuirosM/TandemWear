@@ -53,6 +53,10 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         dataStore.edit { it[Keys.HISTORY_ENABLED] = enabled }
     }
 
+    suspend fun setMusicEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.MUSIC_ENABLED] = enabled }
+    }
+
     suspend fun setHideContentOnLockScreen(hide: Boolean) {
         dataStore.edit { it[Keys.LOCK_SCREEN_PRIVATE] = hide }
     }
@@ -72,6 +76,7 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         val QUIET_ALLOW_CALLS = booleanPreferencesKey("quiet_allow_calls")
         val HISTORY_ENABLED = booleanPreferencesKey("history_enabled")
         val LOCK_SCREEN_PRIVATE = booleanPreferencesKey("lock_screen_private")
+        val MUSIC_ENABLED = booleanPreferencesKey("music_enabled")
     }
 
     companion object {
@@ -95,7 +100,8 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
                     allowCalls = prefs[Keys.QUIET_ALLOW_CALLS] ?: q.allowCalls
                 ),
                 historyEnabled = prefs[Keys.HISTORY_ENABLED] ?: defaults.historyEnabled,
-                hideContentOnLockScreen = prefs[Keys.LOCK_SCREEN_PRIVATE] ?: defaults.hideContentOnLockScreen
+                hideContentOnLockScreen = prefs[Keys.LOCK_SCREEN_PRIVATE] ?: defaults.hideContentOnLockScreen,
+                musicEnabled = prefs[Keys.MUSIC_ENABLED] ?: defaults.musicEnabled
             )
         }
     }

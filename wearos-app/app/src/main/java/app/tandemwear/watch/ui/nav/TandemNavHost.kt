@@ -92,11 +92,12 @@ fun TandemNavHost(
             composable(Routes.LICENSES) { LicensesScreen() }
             composable(Routes.PLAYER) {
                 val music by viewModel.music.collectAsState()
+                val settings by settingsViewModel.settings.collectAsState()
                 DisposableEffect(Unit) {
                     viewModel.setMusicDemanded(true)
                     onDispose { viewModel.setMusicDemanded(false) }
                 }
-                PlayerScreen(music, musicEnabled = true, onCommand = { viewModel.sendMediaCommand(it) })
+                PlayerScreen(music, musicEnabled = settings.musicEnabled, onCommand = { viewModel.sendMediaCommand(it) })
             }
             composable(Routes.SETTINGS) {
                 val status by viewModel.homeStatus.collectAsState()

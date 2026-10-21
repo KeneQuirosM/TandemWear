@@ -230,7 +230,11 @@ class AncsService : Service() {
         history = HistoryRepository(TandemDatabase.get(this).historyDao())
         seenNotifications = SeenNotifications(java.io.File(filesDir, "seen_notifications.txt"))
         scope.launch {
-            SettingsRepository(this@AncsService).settings.collect { settings = it }
+            SettingsRepository(this@AncsService).settings.collect {
+                settings = it
+                // Applied live: subscribes to AMS now, or stops its notifications
+                connectionManager.setMusicEnabled(it.musicEnabled)
+            }
         }
 
         connectionManager.ancsRequestsPending = { attributeRequestsPending.get() }

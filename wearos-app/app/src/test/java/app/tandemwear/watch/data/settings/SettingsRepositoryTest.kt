@@ -53,10 +53,12 @@ class SettingsRepositoryTest {
         repo.setQuietHours(quiet)
         repo.setHistoryEnabled(false)
         repo.setHideContentOnLockScreen(true)
+        repo.setMusicEnabled(false)
         val s = repo.settings.first()
         assertEquals(quiet, s.quietHours)
         assertFalse(s.historyEnabled)
         assertTrue(s.hideContentOnLockScreen)
+        assertFalse(s.musicEnabled)
     }
 
     @Test

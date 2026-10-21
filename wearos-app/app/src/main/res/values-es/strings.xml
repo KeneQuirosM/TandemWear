@@ -162,4 +162,8 @@
     <string name="player_state_playing">Sonando</string>
     <string name="player_state_paused">En pausa</string>
     <string name="music_card_description">%1$s: %2$s, %3$s, en %4$s</string>
+
+    <!-- Ajuste de música (Fase 3) -->
+    <string name="settings_music">Música</string>
+    <string name="settings_music_desc">Controla lo que suena en el iPhone</string>
 </resources>

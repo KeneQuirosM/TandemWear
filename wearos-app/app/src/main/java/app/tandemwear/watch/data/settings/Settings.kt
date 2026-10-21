@@ -51,7 +51,9 @@ data class TandemSettings(
     /** Keep a history of received notifications on the watch. */
     val historyEnabled: Boolean = true,
     /** Hide notification text on the watch's lock screen (all apps). */
-    val hideContentOnLockScreen: Boolean = false
+    val hideContentOnLockScreen: Boolean = false,
+    /** Music from the iPhone (AMS): player, home card and Tile card. */
+    val musicEnabled: Boolean = true
 ) {
     fun ruleFor(appId: String): AppRule = appRules[appId] ?: AppRule()
 }

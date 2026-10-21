@@ -45,6 +45,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         if (!enabled) launch(Dispatchers.IO) { history.clear() }
     }
 
+    fun setMusicEnabled(enabled: Boolean) = viewModelScope.launch { repository.setMusicEnabled(enabled) }
+
     fun setHideContentOnLockScreen(hide: Boolean) = viewModelScope.launch { repository.setHideContentOnLockScreen(hide) }
 
     fun clearHistory() = viewModelScope.launch(Dispatchers.IO) { history.clear() }
