@@ -55,12 +55,6 @@ android {
     testOptions {
         // android.jar stubs throw "Method ... not mocked" (e.g. android.util.Log) in local tests
         unitTests.isReturnDefaultValues = true
-        // Robolectric screenshot tests need the merged resources
-        unitTests.isIncludeAndroidResources = true
-        unitTests.all {
-            // Roborazzi: write the PNGs on every run (no baseline comparison)
-            it.systemProperty("roborazzi.test.record", "true")
-        }
     }
 }
 
@@ -115,10 +109,4 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     testImplementation("org.robolectric:robolectric:4.17")
     testImplementation("androidx.test:core:1.6.1")
-    // Screenshots (Roborazzi + Robolectric native graphics)
-    testImplementation(platform("androidx.compose:compose-bom:2024.12.01"))
-    testImplementation("androidx.compose.ui:ui-test-junit4")
-    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.60.0")
-    testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.60.0")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

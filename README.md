@@ -57,11 +57,11 @@ gradlew.bat assembleDebug
 adb install -r app\build\outputs\apk\debug\app-debug.apk
 ```
 
-Tests unitarios: `gradlew.bat testDebugUnitTest`. También generan capturas de las pantallas en `app/build/outputs/roborazzi/`.
+Tests unitarios: `gradlew.bat testDebugUnitTest`.
 
-**Sin compilar:** cada push a la rama genera, en GitHub › Actions › *Build APK*, dos artefactos:
-- `tandemwear-debug-apk`: el APK, firmado siempre con la misma llave de depuración, así que se instala encima con `adb install -r`;
-- `screenshots`: PNG de las pantallas principales.
+**Ver las pantallas sin el reloj:** abre `app/src/main/java/app/tandemwear/watch/ui/preview/Previews.kt` en Android Studio y elige la vista *Split* o *Design*. Están las pantallas principales en un reloj redondo, también en español, con fuente grande y en modo ambiente.
+
+**Sin compilar:** cada push a la rama genera, en GitHub › Actions › *Build APK*, el artefacto `tandemwear-debug-apk`. El APK va firmado siempre con la misma llave de depuración, así que se instala encima con `adb install -r`.
 
 ## Licencia
 
