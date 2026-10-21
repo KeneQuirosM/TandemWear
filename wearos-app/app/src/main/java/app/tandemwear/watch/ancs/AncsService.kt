@@ -23,6 +23,9 @@ import app.tandemwear.watch.ble.InboundLinkMonitor
 import app.tandemwear.watch.ble.PairingPolicy
 import app.tandemwear.watch.ble.WatchAdvertiser
 import app.tandemwear.watch.data.PairedPhoneStore
+import app.tandemwear.watch.data.history.HistoryEntry
+import app.tandemwear.watch.data.history.HistoryRepository
+import app.tandemwear.watch.data.history.TandemDatabase
 import app.tandemwear.watch.diag.DiagnosticsLog
 import app.tandemwear.watch.ble.BondStateReceiver
 import app.tandemwear.watch.model.AncsEvent
@@ -81,6 +84,9 @@ class AncsService : Service() {
         private const val BACKLOG_SUMMARY_DELAY_MS = 2_000L
         private const val PREFS_NOTIFICATION_IDS = "notification_ids"
         private const val KEY_NEXT_ID = "next_id"
+        private const val PREFS_HISTORY = "history"
+        /** Bond address of the iPhone the stored history belongs to. */
+        private const val KEY_HISTORY_OWNER = "owner_address"
 
         /** Shared connection state observable by the ViewModel */
         private val _sharedConnectionState = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
@@ -94,6 +100,7 @@ class AncsService : Service() {
     private lateinit var pairedPhoneStore: PairedPhoneStore
     private lateinit var notificationManager: NotificationManager
     private lateinit var vibrator: Vibrator
+    private lateinit var history: HistoryRepository
 
     private val dataSourceAssembler = DataSourceAssembler()
     private val appNameCache = mutableMapOf<String, String>()
@@ -182,10 +189,12 @@ class AncsService : Service() {
         )
         notificationManager = getSystemService(NotificationManager::class.java)
         vibrator = getSystemService(Vibrator::class.java)
+        history = HistoryRepository(TandemDatabase.get(this).historyDao())
 
         connectionManager.onPhoneBonded = { identity, name ->
             scope.launch {
                 pairedPhoneStore.save(identity, name)
+                onPhonePaired(identity)
                 DiagnosticsLog.log("pairing: saved iPhone $identity")
                 endPairingWindow()
             }
@@ -315,6 +324,7 @@ class AncsService : Service() {
             if (pairedPhoneStore.pairedAddress != null) {
                 DiagnosticsLog.log("pairing: stored iPhone is no longer bonded — pairing needed")
                 pairedPhoneStore.clear()
+                clearHistory()
             }
             if (!pairingWindowOpen) DiagnosticsLog.log("pairing: no paired iPhone; waiting for the user to pair")
             return
@@ -457,9 +467,11 @@ class AncsService : Service() {
                 // Cancel the Android notification and remove from tracking
                 // Only notifications posted in this session: an old one with the same
                 // (renumbered) UID must not be cancelled
+                val removedSession = idRegistry.sessionId
                 idRegistry.remove(event.notificationUid)?.let { removedId ->
                     notificationManager.cancel(removedId)
                     activeNotificationIds.remove(removedId)
+                    scope.launch(Dispatchers.IO) { history.removedOnIphone(removedId, removedSession) }
                 }
 
                 // If this was an incoming call, dismiss everything
@@ -701,6 +713,36 @@ class AncsService : Service() {
 
         notificationManager.notify(notifId, builder.build())
         activeNotificationIds.addLast(notifId)
+
+        val entry = HistoryEntry(
+            androidId = notifId,
+            sessionId = sessionId,
+            uid = notification.uid,
+            appId = notification.appIdentifier,
+            appName = appName ?: notification.appIdentifier,
+            categoryId = notification.categoryId,
+            title = senderName,
+            message = notification.message.ifEmpty { notification.subtitle.orEmpty() },
+            postedAt = notifTime,
+            positiveLabel = notification.positiveActionLabel,
+            negativeLabel = notification.negativeActionLabel
+        )
+        scope.launch(Dispatchers.IO) { history.record(entry, store = true) }
+    }
+
+    /** A (new) iPhone was paired: history from another iPhone or an older bond is dropped. */
+    private fun onPhonePaired(identity: String) {
+        val prefs = getSharedPreferences(PREFS_HISTORY, MODE_PRIVATE)
+        if (prefs.getString(KEY_HISTORY_OWNER, null) != identity) {
+            clearHistory()
+            prefs.edit().putString(KEY_HISTORY_OWNER, identity).apply()
+        }
+    }
+
+    /** Unpaired: decision of 21-10, the history is cleared. */
+    private fun clearHistory() {
+        DiagnosticsLog.log("history: cleared (iPhone unpaired or changed)")
+        scope.launch(Dispatchers.IO) { history.clear() }
     }
 
     /**

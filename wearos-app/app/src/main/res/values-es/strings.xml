@@ -81,4 +81,12 @@
     <string name="license_wearbridge_title">WearBridge (Karthik Rajendran)</string>
     <string name="license_androidx_title">AndroidX, Jetpack Compose, Kotlin</string>
     <string name="license_icons_title">Íconos: Material Symbols, Lucide</string>
+
+    <!-- Notificaciones recientes (2.3) -->
+    <string name="recent_title">Recientes</string>
+    <string name="recent_empty">Aún no hay notificaciones. Las nuevas del iPhone aparecen aquí.</string>
+    <string name="recent_item_description">%1$s, %2$s: %3$s, %4$s</string>
+    <string name="notification_hidden_text">Nueva notificación de %1$s</string>
+    <string name="detail_actions_expired">Las acciones del iPhone ya no están disponibles después de reconectar.</string>
+    <string name="action_dismiss_from_watch">Descartar del reloj</string>
 </resources>

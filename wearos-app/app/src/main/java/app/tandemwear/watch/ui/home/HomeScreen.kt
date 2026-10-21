@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -23,19 +24,29 @@ import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.FilledTonalButton
+import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.material3.Icon
+import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.OutlinedButton
 import androidx.wear.compose.material3.Text
 import app.tandemwear.watch.R
 import app.tandemwear.watch.ui.components.ConnectionMark
 import app.tandemwear.watch.ui.components.TandemList
+import app.tandemwear.watch.ui.recent.EmptyRecent
+import app.tandemwear.watch.ui.recent.NotificationCard
 import app.tandemwear.watch.ui.theme.TandemColors
 import app.tandemwear.watch.ui.theme.TandemType
 import app.tandemwear.watch.viewmodel.MainViewModel
 
 @Composable
-fun HomeScreen(viewModel: MainViewModel, onPair: () -> Unit, onAbout: () -> Unit) {
+fun HomeScreen(
+    viewModel: MainViewModel,
+    onPair: () -> Unit,
+    onAbout: () -> Unit,
+    onOpenNotification: (Long) -> Unit
+) {
     val status by viewModel.homeStatus.collectAsState()
+    val recent by viewModel.recent.collectAsState()
 
     TandemList {
         item { StatusHeader(status) }
@@ -47,6 +58,15 @@ fun HomeScreen(viewModel: MainViewModel, onPair: () -> Unit, onAbout: () -> Unit
                 onReconnect = { viewModel.startService() },
                 onPair = onPair
             )
+        }
+
+        item { ListHeader(modifier = Modifier.semantics { heading() }) { Text(stringResource(R.string.recent_title), fontSize = TandemType.label) } }
+        if (recent.isEmpty()) {
+            item { EmptyRecent() }
+        } else {
+            items(recent, key = { it.id }) { entry ->
+                NotificationCard(entry, onClick = { onOpenNotification(entry.id) })
+            }
         }
 
         if (status is HomeStatus.Connected) {
