@@ -81,6 +81,9 @@ Al terminar entrego el resumen, los comandos y las pruebas manuales en el Galaxy
 - **Aplazado (decisión del 21-10):** traducir esos errores requiere códigos de error en `BleConnectionManager`. **No se toca `BleConnectionManager`** (ni el emparejamiento ni la reconexión) hasta que termine la prueba de larga duración del usuario y él dé el OK.
 - **Firma de depuración fija** (commit aparte): `wearos-app/keystore/debug.keystore`. Las compilaciones de CI y las locales se instalan encima con `adb install -r`. La primera instalación tras el cambio todavía exige desinstalar una vez.
 
+- **2.2 a 2.8 escritos (noche del 21-10)**, con CI en verde paso a paso. Resumen en `docs/RESUMEN_NOCHE.md`, decisiones en `docs/DECISIONES.md` y pruebas manuales en `docs/PRUEBAS_FASE2.md`. Todo está **por verificar** en el reloj.
+- **Pendiente: `targetSdk 36`.** Se sube después de la prueba de larga duración del usuario; hasta entonces se queda en 35.
+
 ## Reconciliación con el brief v2 (`prompt_fase2_v2.md`)
 
 | Tema | Plan anterior | Brief v2 | Propuesta |
