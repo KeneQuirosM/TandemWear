@@ -46,3 +46,28 @@ La primera vez con la firma fija hay que desinstalar antes (`adb uninstall app.t
 2. Con «Permitir llamadas» activado, una llamada suena. Con la opción desactivada, la llamada llega solo como notificación silenciosa.
 3. Elige las horas con la corona o deslizando, sin teclado. Prueba un rango que cruce la medianoche (22:00 → 07:00).
 4. Privacidad › «Ocultar con pantalla bloqueada»: con el reloj bloqueado solo se ve el nombre de la app (**depende de One UI Watch**).
+
+## 2.6 Tile
+
+1. Mantén presionada la esfera › Tiles › agrega «Estado de TandemWear». La vista previa son los dos anillos.
+2. Con el iPhone conectado y sin notificaciones, debe decir «Conectado» (turquesa) y «Aún no hay notificaciones».
+3. Al recibir un mensaje, en unos 2 s el Tile muestra el remitente, el texto y «N pendientes».
+4. Con «Ocultar el texto» en esa app, solo aparece el nombre de la app. Con «Ocultar con pantalla bloqueada», el Tile no muestra el texto.
+5. Al apagar el Bluetooth del iPhone, el Tile pasa a «Reconectando…» (ámbar) o «Desconectado».
+6. «Abrir» y la tarjeta abren la app.
+7. Batería: con el Tile agregado, el consumo en una hora no debe cambiar respecto a hoy (**por verificar**).
+
+## 2.7 Complicación
+
+1. En una esfera que acepte texto corto, elige «Notificaciones del iPhone». Deben verse los anillos y el número de pendientes.
+2. Desconectado, el segundo anillo se ve atenuado.
+3. Con TalkBack, lee el estado y los pendientes.
+4. Tocarla abre la app.
+
+## 2.8 Accesibilidad, ambiente e ícono
+
+1. Ícono de la app: dos anillos turquesa sobre negro en el lanzador.
+2. Modo ambiente (activa «Pantalla siempre encendida» y baja la muñeca con la app abierta): fondo negro, anillos y texto en gris. Cada minuto se desplaza unos píxeles.
+3. Fuente al máximo (Ajustes › Pantalla › Tamaño de fuente): nada se corta en Inicio, Detalle ni Ajustes. Todo se desplaza con la corona.
+4. TalkBack: cada botón dice su función. Los títulos se anuncian como encabezados. Cada tarjeta de Recientes se lee como «app, remitente: texto, hora».
+5. Idioma inglés en el reloj: todos los textos en inglés.

@@ -84,6 +84,9 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
 
+    // Ambient mode (AmbientLifecycleObserver)
+    implementation("androidx.wear:wear:1.4.0")
+
     // Tile (2.6) and complication (2.7)
     implementation("androidx.wear.tiles:tiles:1.6.2")
     implementation("androidx.wear.protolayout:protolayout:1.4.2")

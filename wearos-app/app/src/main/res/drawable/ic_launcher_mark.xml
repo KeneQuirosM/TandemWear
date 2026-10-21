@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive icon foreground: 108dp canvas, rings inside the 66dp safe zone (21..87) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M45,54m-15,0a15,15 0,1 1,30 0a15,15 0,1 1,-30 0"
+        android:strokeWidth="5"
+        android:strokeColor="#FF8CD3E8"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M63,54m-15,0a15,15 0,1 1,30 0a15,15 0,1 1,-30 0"
+        android:strokeWidth="5"
+        android:strokeColor="#FF8CD3E8"
+        android:fillColor="#00000000" />
+</vector>

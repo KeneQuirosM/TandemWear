@@ -31,6 +31,7 @@ import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.OutlinedButton
 import androidx.wear.compose.material3.Text
 import app.tandemwear.watch.R
+import app.tandemwear.watch.data.history.HistoryEntry
 import app.tandemwear.watch.ui.components.ConnectionMark
 import app.tandemwear.watch.ui.components.TandemList
 import app.tandemwear.watch.ui.recent.EmptyRecent
@@ -49,15 +50,38 @@ fun HomeScreen(
 ) {
     val status by viewModel.homeStatus.collectAsState()
     val recent by viewModel.recent.collectAsState()
+    HomeContent(
+        status = status,
+        recent = recent,
+        onOpenBluetooth = { viewModel.openBluetoothSettings() },
+        onReconnect = { viewModel.startService() },
+        onPair = onPair,
+        onAbout = onAbout,
+        onSettings = onSettings,
+        onOpenNotification = onOpenNotification
+    )
+}
 
+/** Stateless home, also used by the screenshot tests. */
+@Composable
+fun HomeContent(
+    status: HomeStatus,
+    recent: List<HistoryEntry>,
+    onOpenBluetooth: () -> Unit,
+    onReconnect: () -> Unit,
+    onPair: () -> Unit,
+    onAbout: () -> Unit,
+    onSettings: () -> Unit,
+    onOpenNotification: (Long) -> Unit
+) {
     TandemList {
         item { StatusHeader(status) }
 
         item {
             StatusAction(
                 status = status,
-                onOpenBluetooth = { viewModel.openBluetoothSettings() },
-                onReconnect = { viewModel.startService() },
+                onOpenBluetooth = onOpenBluetooth,
+                onReconnect = onReconnect,
                 onPair = onPair
             )
         }
@@ -93,7 +117,7 @@ fun HomeScreen(
 
 /** Mark + state title + detail. Announced by TalkBack when it changes. */
 @Composable
-private fun StatusHeader(status: HomeStatus) {
+fun StatusHeader(status: HomeStatus) {
     val defaultPhone = stringResource(R.string.default_phone_name)
     val (color, title, body) = when (status) {
         is HomeStatus.Connected -> Triple(

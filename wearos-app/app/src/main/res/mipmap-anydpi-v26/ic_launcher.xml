@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Two interlocked rings (iPhone + watch) on black. minSdk 33, so this always wins over the PNGs. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_mark" />
+    <monochrome android:drawable="@drawable/ic_launcher_mark" />
+</adaptive-icon>
