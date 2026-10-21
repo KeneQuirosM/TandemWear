@@ -62,6 +62,39 @@
             </intent-filter>
         </service>
 
+        <!-- Tile: status, last notification, pending count (2.6) -->
+        <service
+            android:name=".tile.TandemTileService"
+            android:exported="true"
+            android:label="@string/tile_label"
+            android:icon="@drawable/ic_mark_linked"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+            <meta-data
+                android:name="androidx.wear.tiles.PREVIEW"
+                android:resource="@drawable/tile_preview" />
+        </service>
+
+        <!-- Complication: mark + pending count, updated on demand (2.7) -->
+        <service
+            android:name=".complication.TandemComplicationService"
+            android:exported="true"
+            android:label="@string/complication_label"
+            android:icon="@drawable/ic_mark_linked"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SHORT_TEXT" />
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="0" />
+        </service>
+
         <receiver
             android:name=".ancs.BootReceiver"
             android:exported="true">

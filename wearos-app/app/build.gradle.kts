@@ -84,6 +84,13 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
 
+    // Tile (2.6) and complication (2.7)
+    implementation("androidx.wear.tiles:tiles:1.6.2")
+    implementation("androidx.wear.protolayout:protolayout:1.4.2")
+    implementation("androidx.wear.protolayout:protolayout-material3:1.4.2")
+    implementation("androidx.concurrent:concurrent-futures:1.3.0")
+    implementation("androidx.wear.watchface:watchface-complications-data-source-ktx:1.3.0")
+
     // Settings
     implementation("androidx.datastore:datastore-preferences:1.2.1")
 

@@ -29,6 +29,7 @@ import app.tandemwear.watch.data.history.TandemDatabase
 import app.tandemwear.watch.data.settings.SettingsRepository
 import app.tandemwear.watch.data.settings.TandemSettings
 import app.tandemwear.watch.notify.NotificationPolicy
+import app.tandemwear.watch.tile.SurfaceState
 import app.tandemwear.watch.diag.DiagnosticsLog
 import app.tandemwear.watch.ble.BondStateReceiver
 import app.tandemwear.watch.model.AncsEvent
@@ -88,6 +89,7 @@ class AncsService : Service() {
         private const val PREFS_NOTIFICATION_IDS = "notification_ids"
         private const val KEY_NEXT_ID = "next_id"
         private const val PREFS_HISTORY = "history"
+        private const val SURFACE_UPDATE_DELAY_MS = 1_500L
         /** Bond address of the iPhone the stored history belongs to. */
         private const val KEY_HISTORY_OWNER = "owner_address"
 
@@ -104,6 +106,7 @@ class AncsService : Service() {
     private lateinit var notificationManager: NotificationManager
     private lateinit var vibrator: Vibrator
     private lateinit var history: HistoryRepository
+    private var surfaceUpdateJob: Job? = null
 
     // Latest user settings; the flow below keeps it current, so changes apply live
     @Volatile private var settings = TandemSettings()
@@ -263,6 +266,7 @@ class AncsService : Service() {
                     is ConnectionState.Error -> getString(R.string.service_status_error, shown.message)
                 }
                 notificationManager.notify(SERVICE_NOTIFICATION_ID, buildServiceNotification(text))
+                requestSurfaceUpdate()
             }
         }
 
@@ -296,6 +300,7 @@ class AncsService : Service() {
                 }
                 activeNotificationIds.clear()
                 notificationManager.cancel(NOTIFICATION_ID_CALL)
+                requestSurfaceUpdate()
             }
             ACTION_STOP -> {
                 endPairingWindow()
@@ -481,6 +486,7 @@ class AncsService : Service() {
                     notificationManager.cancel(removedId)
                     activeNotificationIds.remove(removedId)
                     scope.launch(Dispatchers.IO) { history.removedOnIphone(removedId, removedSession) }
+                    requestSurfaceUpdate()
                 }
 
                 // If this was an incoming call, dismiss everything
@@ -748,6 +754,7 @@ class AncsService : Service() {
 
         notificationManager.notify(notifId, builder.build())
         activeNotificationIds.addLast(notifId)
+        requestSurfaceUpdate()
 
         val entry = HistoryEntry(
             androidId = notifId,
@@ -765,6 +772,22 @@ class AncsService : Service() {
             contentHidden = decision.hideContent
         )
         scope.launch(Dispatchers.IO) { history.record(entry, store = settings.historyEnabled) }
+    }
+
+    /**
+     * Tile and complication refresh, coalesced: a burst of notifications or state changes
+     * becomes one update, after the history write has landed.
+     */
+    private fun requestSurfaceUpdate() {
+        surfaceUpdateJob?.cancel()
+        surfaceUpdateJob = scope.launch {
+            delay(SURFACE_UPDATE_DELAY_MS)
+            try {
+                SurfaceState.requestUpdate(this@AncsService)
+            } catch (e: Exception) {
+                Log.w(TAG, "Tile/complication update request failed", e)
+            }
+        }
     }
 
     /** A (new) iPhone was paired: history from another iPhone or an older bond is dropped. */
