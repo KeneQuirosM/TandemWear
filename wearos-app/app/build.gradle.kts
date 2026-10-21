@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace = "app.tandemwear.watch"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "app.tandemwear.watch"
         minSdk = 33 // Wear OS 4
-        targetSdk = 35
+        targetSdk = 35 // stays 35 until the long-run reconnection test is done (docs/FASE2_PLAN.md)
         versionCode = 1
         versionName = "1.0"
     }
@@ -64,13 +64,14 @@ dependencies {
 
     // Compose for Wear OS
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))
-    implementation("androidx.wear.compose:compose-material3:1.0.0-alpha29")
-    implementation("androidx.wear.compose:compose-foundation:1.4.1")
-    implementation("androidx.wear.compose:compose-navigation:1.4.1")
+    implementation("androidx.wear.compose:compose-material3:1.7.1")
+    implementation("androidx.wear.compose:compose-foundation:1.7.1")
+    implementation("androidx.wear.compose:compose-navigation:1.7.1")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
+    implementation("androidx.wear.compose:compose-ui-tooling:1.7.1")
 
     // Activity + Lifecycle
     implementation("androidx.activity:activity-compose:1.9.3")
