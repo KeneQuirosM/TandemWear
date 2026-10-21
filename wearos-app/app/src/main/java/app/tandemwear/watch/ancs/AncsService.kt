@@ -272,11 +272,19 @@ class AncsService : Service() {
             connectionManager.amsEvents.collect { packet ->
                 if (!idRegistry.isCurrent(packet.sessionId)) return@collect
                 val now = android.os.SystemClock.elapsedRealtime()
+                val before = _sharedMusic.value
                 _sharedMusic.value = when (packet) {
                     is AmsPacket.Status -> _sharedMusic.value.onStatus(packet.available, packet.subscribed)
                     is AmsPacket.EntityUpdate -> _sharedMusic.value.onEntityUpdate(packet.data, now)
                     is AmsPacket.SupportedCommands -> _sharedMusic.value.onSupportedCommands(packet.data)
                     is AmsPacket.FullValue -> _sharedMusic.value.onFullValue(packet.entity, packet.attribute, packet.value, now)
+                }
+                // Tile music card: refresh only when what it shows changes (not every position update)
+                val after = _sharedMusic.value
+                if (before.hasPlayer != after.hasPlayer || before.media.isPlaying != after.media.isPlaying ||
+                    before.media.title != after.media.title || before.media.artist != after.media.artist
+                ) {
+                    requestSurfaceUpdate()
                 }
             }
         }

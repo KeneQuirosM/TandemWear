@@ -21,6 +21,15 @@ import app.tandemwear.watch.viewmodel.MainViewModel
 
 class MainActivity : ComponentActivity() {
 
+    companion object {
+        /** Screen to open on launch (e.g. from the Tile): [DESTINATION_PLAYER]. */
+        const val EXTRA_DESTINATION = "app.tandemwear.watch.DESTINATION"
+        const val DESTINATION_PLAYER = "player"
+    }
+
+    // Destination requested by the launching intent, consumed by the navigation once
+    private val requestedDestination = mutableStateOf<String?>(null)
+
     private val viewModel: MainViewModel by viewModels()
 
     // Ambient (always-on): null when interactive
@@ -54,6 +63,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        requestedDestination.value = intent?.getStringExtra(EXTRA_DESTINATION)
         lifecycle.addObserver(ambientObserver)
         requestPermissionsIfNeeded()
 
@@ -61,7 +71,11 @@ class MainActivity : ComponentActivity() {
             TandemWearTheme {
                 Box {
                     // The navigation stays composed under the ambient view, so state survives
-                    TandemNavHost(viewModel = viewModel)
+                    TandemNavHost(
+                        viewModel = viewModel,
+                        requestedDestination = requestedDestination.value,
+                        onDestinationHandled = { requestedDestination.value = null }
+                    )
                     ambientDetails.value?.let { details ->
                         val status by viewModel.homeStatus.collectAsState()
                         AmbientScreen(status, details.burnInProtectionRequired, ambientTick.intValue)
@@ -69,6 +83,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        intent.getStringExtra(EXTRA_DESTINATION)?.let { requestedDestination.value = it }
     }
 
     private fun requestPermissionsIfNeeded() {

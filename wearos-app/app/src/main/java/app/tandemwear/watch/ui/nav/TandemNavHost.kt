@@ -3,6 +3,8 @@ package app.tandemwear.watch.ui.nav
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import app.tandemwear.watch.ui.MainActivity
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -51,8 +53,19 @@ object Routes {
  * SwipeDismissableNavHost handles both.
  */
 @Composable
-fun TandemNavHost(viewModel: MainViewModel) {
+fun TandemNavHost(
+    viewModel: MainViewModel,
+    requestedDestination: String? = null,
+    onDestinationHandled: () -> Unit = {}
+) {
     val navController = rememberSwipeDismissableNavController()
+    // Launched from the Tile's music card: open the player on top of home
+    LaunchedEffect(requestedDestination) {
+        if (requestedDestination == MainActivity.DESTINATION_PLAYER) {
+            navController.navigate(Routes.PLAYER) { launchSingleTop = true }
+            onDestinationHandled()
+        }
+    }
     // Activity-scoped: created outside the NavHost, shared by all settings screens
     val settingsViewModel: SettingsViewModel = viewModel()
     AppScaffold {

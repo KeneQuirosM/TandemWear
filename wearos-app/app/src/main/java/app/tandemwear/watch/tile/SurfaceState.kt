@@ -7,6 +7,7 @@ import android.content.ComponentName
 import android.content.Context
 import androidx.wear.tiles.TileService
 import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
+import app.tandemwear.watch.ams.RemoteCommand
 import app.tandemwear.watch.ancs.AncsService
 import app.tandemwear.watch.complication.TandemComplicationService
 import app.tandemwear.watch.data.PairedPhoneStore
@@ -46,7 +47,18 @@ object SurfaceState {
         val last = lastEntry?.let {
             TileModel.LastNotification(it.appName, it.title, it.message, hidden = it.contentHidden)
         }
-        return Snapshot(TileModel(status, pending, last), hideOnTile = settings.hideContentOnLockScreen)
+        val musicSession = AncsService.sharedMusic.value
+        val music = musicSession.takeIf { it.hasPlayer }?.media?.let { m ->
+            TileModel.Music(
+                appName = m.playerName,
+                title = m.title,
+                artist = m.artist,
+                isPlaying = m.isPlaying,
+                canTogglePlay = musicSession.supports(RemoteCommand.TOGGLE_PLAY_PAUSE) ||
+                    musicSession.supports(RemoteCommand.PLAY) || musicSession.supports(RemoteCommand.PAUSE)
+            )
+        }
+        return Snapshot(TileModel(status, pending, last, music), hideOnTile = settings.hideContentOnLockScreen)
     }
 
     /** Ask the system to refresh the Tile and the complication (it re-requests their data). */

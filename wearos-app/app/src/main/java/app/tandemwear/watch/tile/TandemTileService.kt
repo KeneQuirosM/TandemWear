@@ -2,6 +2,7 @@ package app.tandemwear.watch.tile
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import androidx.concurrent.futures.CallbackToFutureAdapter
 import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.LayoutElementBuilders.LayoutElement
@@ -21,6 +22,8 @@ import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
 import app.tandemwear.watch.R
+import app.tandemwear.watch.ams.RemoteCommand
+import app.tandemwear.watch.ancs.AncsService
 import app.tandemwear.watch.ui.MainActivity
 import app.tandemwear.watch.ui.home.HomeStatus
 import com.google.common.util.concurrent.ListenableFuture
@@ -44,7 +47,14 @@ class TandemTileService : TileService() {
         CallbackToFutureAdapter.getFuture { completer ->
             scope.launch {
                 try {
-                    val snapshot = SurfaceState.load(this@TandemTileService)
+                    // Tile button: play/pause on the iPhone without opening the app
+                    val toggled = requestParams.currentState.lastClickableId == CLICK_MEDIA_TOGGLE
+                    if (toggled) sendMediaToggle()
+                    var snapshot = SurfaceState.load(this@TandemTileService)
+                    // Show the expected state right away; the AMS update refreshes it
+                    snapshot.model.music?.takeIf { toggled }?.let { m ->
+                        snapshot = snapshot.copy(model = snapshot.model.copy(music = m.copy(isPlaying = !m.isPlaying)))
+                    }
                     val layout = layout(this@TandemTileService, requestParams, snapshot)
                     completer.set(
                         TileBuilders.Tile.Builder()
@@ -81,18 +91,69 @@ class TandemTileService : TileService() {
             TileModel.Tone.ATTENTION -> COLOR_ATTENTION
         }
         val statusText = statusLabel(context, model)
+        val music = model.music
+        val openPlayer = clickable(
+            action = ActionBuilders.launchAction(
+                ComponentName(context, MainActivity::class.java),
+                mapOf(MainActivity.EXTRA_DESTINATION to ActionBuilders.stringExtra(MainActivity.DESTINATION_PLAYER))
+            ),
+            id = "open_player"
+        )
+        val toggle = clickable(id = CLICK_MEDIA_TOGGLE)
         return materialScope(context, request.deviceConfiguration, allowDynamicTheme = false) {
             primaryLayout(
                 titleSlot = {
                     text(statusText.layoutString, typography = Typography.TITLE_SMALL, color = toneColor.argb)
                 },
-                mainSlot = { mainContent(context, model, snapshot.hideOnTile, openApp) },
+                mainSlot = {
+                    if (music != null) musicCard(context, music, openPlayer)
+                    else mainContent(context, model, snapshot.hideOnTile, openApp)
+                },
                 bottomSlot = {
-                    textEdgeButton(onClick = openApp) {
-                        text(context.getString(R.string.tile_open).layoutString)
+                    if (music != null && music.canTogglePlay) {
+                        textEdgeButton(onClick = toggle) {
+                            text(context.getString(if (music.isPlaying) R.string.player_pause else R.string.player_play).layoutString)
+                        }
+                    } else {
+                        textEdgeButton(onClick = openApp) {
+                            text(context.getString(R.string.tile_open).layoutString)
+                        }
                     }
                 }
             )
+        }
+    }
+
+    /** Music card: app and state, title, artist. Tap opens the player. */
+    private fun MaterialScope.musicCard(
+        context: Context,
+        music: TileModel.Music,
+        openPlayer: ModifiersBuilders.Clickable
+    ): LayoutElement {
+        val state = context.getString(if (music.isPlaying) R.string.player_state_playing else R.string.player_state_paused)
+        return titleCard(
+            onClick = openPlayer,
+            title = { text((music.title ?: context.getString(R.string.player_unknown_title)).layoutString, maxLines = 1) },
+            content = { text((music.artist ?: music.appName ?: "").layoutString, maxLines = 2) },
+            time = { text(state.layoutString, maxLines = 1) }
+        )
+    }
+
+    private fun sendMediaToggle() {
+        val music = AncsService.sharedMusic.value
+        val command = when {
+            music.supports(RemoteCommand.TOGGLE_PLAY_PAUSE) -> RemoteCommand.TOGGLE_PLAY_PAUSE
+            music.media.isPlaying -> RemoteCommand.PAUSE
+            else -> RemoteCommand.PLAY
+        }
+        try {
+            startService(
+                Intent(this, AncsService::class.java)
+                    .setAction(AncsService.ACTION_MEDIA_COMMAND)
+                    .putExtra(AncsService.EXTRA_MEDIA_COMMAND, command.id)
+            )
+        } catch (e: Exception) {
+            // Service not running (no iPhone): nothing to control
         }
     }
 
@@ -116,6 +177,7 @@ class TandemTileService : TileService() {
 
     companion object {
         private const val RESOURCES_VERSION = "1"
+        private const val CLICK_MEDIA_TOGGLE = "media_toggle"
 
         // Same palette as the app (TandemColors)
         private const val COLOR_CONNECTED = 0xFF8CD3E8.toInt()

@@ -42,4 +42,14 @@ class TileModelTest {
         assertEquals("7", TileModel(HomeStatus.Connected(null), 7, null).shortText)
         assertEquals("99+", TileModel(HomeStatus.Connected(null), 120, null).shortText)
     }
+
+    @Test
+    fun `music is optional and carried as given`() {
+        val base = TileModel(HomeStatus.Connected(null), 2, msg)
+        assertNull(base.music)
+        val withMusic = base.copy(music = TileModel.Music("Spotify", "Labios compartidos", "Maná", isPlaying = true, canTogglePlay = true))
+        assertEquals("Maná", withMusic.music!!.artist)
+        // Notifications keep their own fields (the Tile shows music first while something plays)
+        assertEquals("Ana", withMusic.lastTitle)
+    }
 }

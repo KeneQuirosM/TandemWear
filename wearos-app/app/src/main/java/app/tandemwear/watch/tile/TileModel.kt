@@ -10,8 +10,18 @@ data class TileModel(
     val status: HomeStatus,
     /** TandemWear notifications still in the watch's notification shade. */
     val pending: Int,
-    val last: LastNotification?
+    val last: LastNotification?,
+    /** The iPhone's now-playing app, when any (AMS). */
+    val music: Music? = null
 ) {
+    data class Music(
+        val appName: String?,
+        val title: String?,
+        val artist: String?,
+        val isPlaying: Boolean,
+        val canTogglePlay: Boolean
+    )
+
     data class LastNotification(
         val appName: String,
         val title: String,
