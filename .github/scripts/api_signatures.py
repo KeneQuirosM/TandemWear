@@ -18,6 +18,16 @@ with zipfile.ZipFile(jar) as z:
             continue
         lines = z.read(name).decode('utf-8', 'replace').splitlines()
         out = []
+        if name.endswith('.java'):
+            # Java: public/protected member and type headers, one line each (bodies dropped)
+            for line in lines:
+                t = line.strip()
+                if re.match(r'(public|protected) ', t) and not t.startswith(('public static final int', 'protected static final int')):
+                    out.append(line.rstrip().rstrip('{').rstrip())
+            if out:
+                print(f'===== {name}')
+                print('\n'.join(out))
+            continue
         i = 0
         while i < len(lines):
             line = lines[i]

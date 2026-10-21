@@ -99,6 +99,9 @@ jobs:
           sig watchface-complications-data-source-1.3.0 '^(ComplicationDataSourceService|ComplicationDataSourceUpdateRequester|ComplicationRequest)\.(kt|java)$'
           sig watchface-complications-data-1.3.0 '^(Data|Text|Image)\.kt$'
           sig wear-1.4.0 '^Ambient'
+          sig tiles-1.6.2 '^(TileService|RequestBuilders|TileBuilders|EventBuilders)\.java$'
+          sig protolayout-1.4.2 '^(ModifiersBuilders|ActionBuilders|TimelineBuilders|ResourceBuilders|DeviceParametersBuilders)\.java$|^(LayoutString|Types|LayoutColor|Helpers|Modifiers|ModifiersExt|Clickable)\.kt$'
+          sig protolayout-material3-1.4.2 '^(EdgeButton|Helpers|MaterialScopeHelpers|ColorTokens|Typography|TypographyTokens)\.kt$'
           sig datastore-preferences-core-1.2.1 '\.kt$'
 
       - name: Upload sources
