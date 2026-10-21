@@ -191,3 +191,65 @@ Qué esperar en el log, en orden:
 | Bluetooth del reloj | Apágalo y enciéndelo | `bluetooth: OFF` / `bluetooth: ON` → reconexión |
 | Reinicio del reloj | Reinicia el reloj | El servicio arranca solo y reconecta |
 | El iPhone olvida el reloj | En el iPhone: Omitir dispositivo; acércalos | `bond: KEY_MISSING` o 2 señales de clave → `bond: REPAIR NEEDED`, la app pide emparejar de nuevo y deja de anunciar |
+
+## Log en el reloj (B1)
+
+`DiagnosticsLog` guarda cada línea en un archivo que sobrevive al búfer de logcat:
+- **Dónde:** `files/diag/tandemwear.log` dentro de los datos de la app. Cuando pasa de 512 KB rota a `.1`, `.2` y `.3`, así que ocupa unos 2 MB como máximo, lo suficiente para varias noches.
+- **Formato:** cada línea lleva fecha, hora con milisegundos y huso (`2026-10-21 02:03:25.077 -0600 gatt: …`).
+- **Al arrancar el servicio** se escribe `=== service start: TandemWear <versión>, <modelo>, SDK, zone … ===`.
+- **Privacidad:** el texto de las notificaciones solo aparece en el APK debug; en release solo se guardan longitudes.
+
+Cómo sacarlo (APK debug, sin preparar nada antes):
+
+```bat
+:: Archivo actual
+adb exec-out run-as app.tandemwear.watch cat files/diag/tandemwear.log > noche.txt
+:: Todo, del más viejo al más nuevo
+adb exec-out run-as app.tandemwear.watch sh -c "cat files/diag/tandemwear.log.3 files/diag/tandemwear.log.2 files/diag/tandemwear.log.1 files/diag/tandemwear.log 2>/dev/null" > noche.txt
+```
+
+`run-as` funciona porque el APK debug es depurable. El APK release no lo es.
+
+También se puede usar **TW Probe ANCS › «Exportar log»**: une los archivos, del más viejo al más nuevo, en `Download/tandemwear-log-<fecha>.txt` y escribe la ruta en el log de la pantalla. Después:
+
+```bat
+adb pull /sdcard/Download/tandemwear-log-<fecha>.txt
+```
+
+### Quién inicia cada enlace y si trae ANCS
+
+Cada enlace registra `initiator=` al conectarse. Al cerrarse registra una línea `link: ended … | today …` con el total del día por quien lo inició y cuántos tuvieron ANCS.
+
+Android no informa quién inició el enlace, así que se deduce:
+- **iphone:** nuestro cliente se acopló a un enlace entrante («attach to inbound link»);
+- **watch:** la petición en espera (autoConnect) se abrió **60 s o menos** antes de que subiera el enlace. Esa noche fueron entre 0,1 y 18 s;
+- **unknown:** la petición en espera llevaba más tiempo pendiente, así que pudo tomarla cualquiera de los dos.
+
+Con unos días de uso normal, este contador dice si la hipótesis A se sostiene: que los enlaces iniciados por el reloj no reciben ANCS.
+
+## Noche del 20 al 21-10: ANCS ausente durante horas (análisis)
+
+**Síntoma.** El enlace subía cifrado con el bond, pero mostraba 5 servicios sin ANCS. El iPhone lo cortaba a los ~30 s (status=19), unas 12 veces. Al reiniciar el iPhone, el enlace que **él** inició trajo ANCS en 2,3 s.
+
+**Hipótesis:**
+- **A (la más probable):** iOS solo publica ANCS en enlaces que inicia su propio sistema Bluetooth. Los 12 fallos fueron enlaces iniciados por el reloj (`gatt: open autoConnect=true` entre 0,1 y 18 s antes); el único éxito lo inició el iPhone.
+- **B:** el Modo de bajo consumo. Es posible, pero Apple no lo documenta y no explica el éxito tras el reinicio.
+- **C:** un estado de iOS que solo se limpió al reiniciar.
+
+**Doze en el reloj.** Los temporizadores de la capa BLE usan `delay()` de corrutinas, que cuenta en *uptime*, y el *uptime* se detiene en sueño profundo. Por eso:
+- el reintento de 3 a 30 s tardó entre 7 y 23 minutos;
+- la espera de ANCS de 1,5 s llegó a durar 30 s.
+
+### Pendiente: B3 y B4 (en espera de datos)
+
+- **B3: reconexión que sobreviva a Doze.**
+  - Volver a abrir la petición en espera en el mismo momento del corte, sin temporizador: la petición vive en el controlador y no gasta CPU.
+  - Las pausas largas, con `AlarmManager.setAndAllowWhileIdle` sobre `ELAPSED_REALTIME`.
+- **B4: cortar los enlaces iniciados por el reloj que no tienen ANCS.**
+  - El reloj corta él mismo al reintento 3 (unos 6 s), en vez de esperar los 30 s del iPhone.
+  - Después pausa la petición en espera, cada vez más tiempo (5, 15 y 30 min), y mientras tanto solo se anuncia para que inicie el iPhone.
+
+**Por qué esperamos.** B4 parte de la hipótesis A. Si fuera falsa, quitaría al reloj la única forma de reconectar cuando el iPhone no se conecta por el anuncio, como pasó toda esa noche. Antes queremos varios días de datos de uso normal con el contador de B1: cuántos enlaces inicia cada lado y cuántos traen ANCS. B3 depende de cómo quede B4, así que van juntos.
+
+Mientras tanto, B5 solo **muestra** el estado «Conectado al iPhone, sin notificaciones», sin cambiar la lógica de reconexión.

@@ -12,6 +12,7 @@ import android.os.SystemClock
 import android.util.Log
 import app.tandemwear.watch.ble.GattOperationQueue.OpKey
 import app.tandemwear.watch.diag.DiagnosticsLog
+import app.tandemwear.watch.diag.LinkStats
 import app.tandemwear.watch.model.ConnectionState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +31,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 
 /**
@@ -67,6 +71,8 @@ class BleConnectionManager(
         private const val BOND_TIMEOUT_MS = 90_000L
         /** A pending autoConnect client normally picks up an inbound link by itself. */
         private const val INBOUND_PICKUP_GRACE_MS = 2_000L
+        private const val PREFS_LINK_STATS = "link_stats"
+        private const val KEY_LINK_STATS = "stats"
 
         private val GAP_SERVICE_UUID: UUID = UUID.fromString("00001800-0000-1000-8000-00805f9b34fb")
         private val GAP_DEVICE_NAME_UUID: UUID = UUID.fromString("00002A00-0000-1000-8000-00805f9b34fb")
@@ -118,6 +124,11 @@ class BleConnectionManager(
     private var serviceDiscoveryRetries = 0
     /** When the current link came up (elapsedRealtime), to report how long ANCS took. */
     private var linkUpAtMs = 0L
+    /** When the current GATT client was opened (elapsedRealtime), to infer who started the link. */
+    private var requestOpenedAtMs = 0L
+    /** Diagnostics only: who started the current link and whether ANCS came up on it. */
+    private var linkInitiator: LinkStats.Initiator? = null
+    private var linkHadAncs = false
     /** Completed by encryption change / Service Changed to cut an ANCS wait short. */
     private var ancsWait: CompletableDeferred<String>? = null
     private var ancsWaitJob: Job? = null
@@ -268,6 +279,7 @@ class BleConnectionManager(
 
         closeGatt()
         openedWithAutoConnect = autoConnect
+        requestOpenedAtMs = SystemClock.elapsedRealtime()
         // A background request may wait for hours (iPhone away): don't show "Connecting…"
         _connectionState.value = if (autoConnect) {
             ConnectionState.Disconnected("Waiting for the iPhone")
@@ -289,10 +301,13 @@ class BleConnectionManager(
         reconnectDelay = INITIAL_RECONNECT_DELAY_MS
         bondedSnapshot = bondedAddresses()
         linkUpAtMs = SystemClock.elapsedRealtime()
+        linkInitiator = LinkStats.inferInitiator(openedWithAutoConnect, linkUpAtMs - requestOpenedAtMs)
+        linkHadAncs = false
         _connectionState.value = ConnectionState.Connecting(displayName(g.device))
         DiagnosticsLog.log(
             "gatt: connected ${g.device.address} bond=${bondName(g.device.bondState)} " +
-                "via=${if (openedWithAutoConnect) "background request" else "attach to inbound link"}"
+                "via=${if (openedWithAutoConnect) "background request" else "attach to inbound link"} " +
+                "initiator=${linkInitiator?.name?.lowercase()} (request opened ${linkUpAtMs - requestOpenedAtMs} ms before)"
         )
 
         scope.launch {
@@ -428,6 +443,7 @@ class BleConnectionManager(
             notificationSourceChar = ns
             controlPointChar = cp
             keyLoss.onSessionEstablished()
+            linkHadAncs = true
             DiagnosticsLog.log(
                 "ancs: SESSION ACTIVE (subscribed DS + NS) ${SystemClock.elapsedRealtime() - linkUpAtMs} ms after link up"
             )
@@ -567,6 +583,25 @@ class BleConnectionManager(
         }
     }
 
+    /**
+     * Diagnostics: one line per finished link plus today's totals, persisted per day.
+     * No effect on connection behavior.
+     */
+    private fun recordLinkStats() {
+        val initiator = linkInitiator ?: return
+        linkInitiator = null
+        val prefs = context.getSharedPreferences(PREFS_LINK_STATS, Context.MODE_PRIVATE)
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        val stats = (LinkStats.decode(prefs.getString(KEY_LINK_STATS, null)) ?: LinkStats(today))
+            .record(today, initiator, linkHadAncs)
+        prefs.edit().putString(KEY_LINK_STATS, stats.encode()).apply()
+        val seconds = (SystemClock.elapsedRealtime() - linkUpAtMs) / 1000
+        DiagnosticsLog.log(
+            "link: ended initiator=${initiator.name.lowercase()} ancs=$linkHadAncs after ${seconds}s | " +
+                "today ${stats.day}: ${stats.summary()}"
+        )
+    }
+
     private fun disconnectInternal() {
         autoReconnect = false
         reconnectJob?.cancel()
@@ -602,6 +637,7 @@ class BleConnectionManager(
     }
 
     private fun clearSession() {
+        if (linkUp) recordLinkStats()
         linkUp = false
         operations.clear()
         cancelAncsWait()

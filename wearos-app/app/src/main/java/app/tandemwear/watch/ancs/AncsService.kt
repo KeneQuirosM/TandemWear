@@ -180,6 +180,7 @@ class AncsService : Service() {
     override fun onCreate() {
         super.onCreate()
         pairedPhoneStore = PairedPhoneStore(this)
+        logServiceStart()
         connectionManager = BleConnectionManager(
             this,
             bondedAddresses = { pairedPhoneStore.bondedAddresses() },
@@ -424,7 +425,7 @@ class AncsService : Service() {
                     countSkippedBacklog()
                     return
                 }
-                DiagnosticsLog.log("ancs: NS added/modified uid=${event.notificationUid} cat=${event.categoryId}")
+                DiagnosticsLog.log("ancs: NS added/modified uid=${event.notificationUid} cat=${event.categoryId} flags=0x${event.eventFlags.toString(16)}")
 
                 // MODIFIED on active call = call was answered on iPhone.
                 // Transition the call overlay to "Active on iPhone" state.
@@ -772,6 +773,19 @@ class AncsService : Service() {
             contentHidden = decision.hideContent
         )
         scope.launch(Dispatchers.IO) { history.record(entry, store = settings.historyEnabled) }
+    }
+
+    /** Header line in the diagnostics file, so each run (and app version) is easy to find. */
+    private fun logServiceStart() {
+        val version = try {
+            packageManager.getPackageInfo(packageName, 0).let { "${it.versionName} (${it.longVersionCode})" }
+        } catch (e: Exception) {
+            "?"
+        }
+        DiagnosticsLog.log(
+            "=== service start: TandemWear $version, ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}, " +
+                "SDK ${android.os.Build.VERSION.SDK_INT}, zone ${java.util.TimeZone.getDefault().id} ==="
+        )
     }
 
     /**

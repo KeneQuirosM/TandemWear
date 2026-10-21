@@ -30,7 +30,9 @@
 - Exponential backoff 3s → 30s cap; only bonded targets are re-requested
 - `BootReceiver` starts the service only if paired + BLUETOOTH_CONNECT granted; adapter ON/OFF restarts the link layer
 - Bond loss (iPhone forgot the watch): Android 16 `ACTION_KEY_MISSING` or 2 consecutive key-loss signals (`KeyLossDetector`) → `ConnectionState.RepairNeeded`
-- Pairing/connection milestones go to `DiagnosticsLog` (logcat tag `TandemWear`; shown by the debug "TW Probe ANCS" app)
+- Pairing/connection milestones go to `DiagnosticsLog` (logcat tag `TandemWear`; shown by the debug "TW Probe ANCS" app) and to a rotating file `files/diag/tandemwear.log` (512 KB × 4). Pull: `adb exec-out run-as app.tandemwear.watch cat files/diag/tandemwear.log`
+- Each link logs `initiator=watch|iphone|unknown` and a per-day `link: ended … | today …` summary (LinkStats) — data for the pending B3/B4 decision (docs/EMPAREJAMIENTO.md)
+- BLE-layer timers use coroutine `delay()`, which stalls in Doze (uptime): seen as 7–23 min reconnect gaps
 
 ## Silent/Pre-existing Notification Handling
 

@@ -5,8 +5,10 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.pm.ApplicationInfo
-import app.tandemwear.watch.diag.DiagnosticsLog
 import app.tandemwear.watch.ble.AncsConstants
+import app.tandemwear.watch.diag.DiagnosticsLog
+import app.tandemwear.watch.diag.RotatingFileLog
+import java.io.File
 
 class AncsApplication : Application() {
 
@@ -14,6 +16,8 @@ class AncsApplication : Application() {
         super.onCreate()
         // Notification text may appear in diagnostics only in debuggable builds
         DiagnosticsLog.allowContent = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        // Persist diagnostics: files/diag/tandemwear.log (+ .1 .. .3), ≈2 MB max
+        DiagnosticsLog.attachFile(RotatingFileLog(File(filesDir, RotatingFileLog.DIR_NAME)))
         createNotificationChannels()
     }
 

@@ -20,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Debug-only end-to-end check of the real pairing + ANCS pipeline (not shipped in release).
@@ -27,7 +28,8 @@ import kotlinx.coroutines.launch
  * "Pair" opens the service's pairing window (the watch advertises); pair from iPhone ›
  * Settings › Bluetooth. The screen mirrors [DiagnosticsLog]: advertising, inbound link,
  * bonding and identity address, ANCS subscription, and the first real notification.
- * Same lines in logcat: `adb logcat -s TandemWear:I`.
+ * Same lines in logcat: `adb logcat -s TandemWear:I`, and in files/diag/tandemwear.log*
+ * ("Exportar log" copies them to Download/).
  */
 class AncsProbeActivity : Activity() {
 
@@ -82,6 +84,11 @@ class AncsProbeActivity : Activity() {
                 }
             })
             addView(Button(this@AncsProbeActivity).apply {
+                // Saves files/diag/tandemwear.log* (oldest first) to Download/ on the watch
+                text = "Exportar log"
+                setOnClickListener { exportLog() }
+            })
+            addView(Button(this@AncsProbeActivity).apply {
                 text = "Clear log"
                 setOnClickListener { DiagnosticsLog.clear() }
             })
@@ -116,6 +123,13 @@ class AncsProbeActivity : Activity() {
     override fun onDestroy() {
         scope.cancel()
         super.onDestroy()
+    }
+
+    private fun exportLog() {
+        scope.launch {
+            val result = withContext(Dispatchers.IO) { LogExporter.exportToDownloads(this@AncsProbeActivity) }
+            DiagnosticsLog.log("probe: $result")
+        }
     }
 
     private fun sendToService(action: String) {
