@@ -98,11 +98,7 @@ class AncsService : Service() {
     // Track active notification IDs in posting order (oldest first) for auto-cleanup
     private val activeNotificationIds = ArrayDeque<Int>()
 
-    // Reconnection grace period — suppress vibration for notifications arriving
-    // in the first 60 seconds after subscribing (they're backlog, not truly new)
-    private var subscriptionTime = 0L
     private var activeCallUid: Long = -1
-    private val reconnectionGracePeriodMs = 60_000L
 
     // Pairing window: fast advertising, and unbonded iPhones may attach
     private var pairingWindowJob: Job? = null
@@ -207,10 +203,7 @@ class AncsService : Service() {
                     is ConnectionState.WaitingForIphone -> "Waiting for the iPhone to pair..."
                     is ConnectionState.Connecting -> "Connecting to ${shown.deviceName ?: "iPhone"}..."
                     is ConnectionState.Bonding -> "Pairing with ${shown.deviceName ?: "iPhone"}..."
-                    is ConnectionState.Connected -> {
-                        subscriptionTime = System.currentTimeMillis()
-                        "Connected to ${shown.deviceName ?: "iPhone"}"
-                    }
+                    is ConnectionState.Connected -> "Connected to ${shown.deviceName ?: "iPhone"}"
                     is ConnectionState.Disconnected -> "Disconnected"
                     is ConnectionState.RepairNeeded -> "Pair the iPhone again"
                     is ConnectionState.Error -> "Error: ${shown.message}"
@@ -289,6 +282,7 @@ class AncsService : Service() {
         }
         DiagnosticsLog.log("pairing: paired iPhone ${phone.address}, reconnecting")
         updateAdvertising(connectionManager.connectionState.value)
+        connectionManager.backgroundReconnectEnabled = pairedPhoneStore.reconnectStrategy.useBackgroundRequest
         connectionManager.reconnect(phone)
     }
 
@@ -308,6 +302,7 @@ class AncsService : Service() {
             }
         }
         DiagnosticsLog.log("pairing: window open (${PAIRING_WINDOW_MS / 1000} s)")
+        DiagnosticsLog.log("pairing: bonded before pairing: ${pairedPhoneStore.describeBondedDevices()}")
         _sharedConnectionState.value = ConnectionState.WaitingForIphone(advertiser.advertisedName)
         advertiser.start(WatchAdvertiser.Mode.PAIRING)
     }
@@ -322,13 +317,16 @@ class AncsService : Service() {
      * disconnected, off while connected (saves battery) or when pairing must be redone.
      */
     private fun updateAdvertising(state: ConnectionState) {
+        val paired = pairedPhoneStore.pairedAddress != null
+        val waitingForPhone = state is ConnectionState.Disconnected ||
+            state is ConnectionState.Error || state is ConnectionState.Idle
         when {
             state is ConnectionState.Connected || state is ConnectionState.RepairNeeded -> advertiser.stop()
             pairingWindowOpen -> advertiser.start(WatchAdvertiser.Mode.PAIRING)
-            pairedPhoneStore.pairedAddress != null &&
-                (state is ConnectionState.Disconnected || state is ConnectionState.Error || state is ConnectionState.Idle) ->
+            paired && waitingForPhone && pairedPhoneStore.reconnectStrategy.useAdvertising ->
                 advertiser.start(WatchAdvertiser.Mode.RECONNECT)
-            state is ConnectionState.Idle -> advertiser.stop()
+            // Connecting/Bonding (link already up), not paired, or advertising disabled
+            else -> advertiser.stop()
         }
     }
 
@@ -357,20 +355,13 @@ class AncsService : Service() {
 
         when {
             event.isAdded || event.isModified -> {
-                // Skip pre-existing notifications at the NS level — don't even
-                // fetch attributes. This avoids GATT writes that trigger system haptics.
-                if (event.isPreExisting) {
+                // Skip the backlog (PreExisting) at the NS level — don't even fetch
+                // attributes. This avoids GATT writes that trigger system haptics.
+                if (AncsEventFilter.decide(event) == AncsEventFilter.Decision.SKIP_PRE_EXISTING) {
                     Log.d(TAG, "Skipping pre-existing NS event uid=${event.notificationUid}")
                     return
                 }
                 DiagnosticsLog.log("ancs: NS added/modified uid=${event.notificationUid} cat=${event.categoryId}")
-
-                // Also skip during grace period (non-flagged backlog)
-                val now = System.currentTimeMillis()
-                if ((now - subscriptionTime) < reconnectionGracePeriodMs && !event.isIncomingCall) {
-                    DiagnosticsLog.log("ancs: skipped uid=${event.notificationUid} (first ${reconnectionGracePeriodMs / 1000} s after connecting)")
-                    return
-                }
 
                 // MODIFIED on active call = call was answered on iPhone.
                 // Transition the call overlay to "Active on iPhone" state.
