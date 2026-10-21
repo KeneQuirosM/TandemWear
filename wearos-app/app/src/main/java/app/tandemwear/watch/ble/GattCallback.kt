@@ -24,6 +24,8 @@ class GattCallback(
     private val onServicesDiscoveredCallback: (BluetoothGatt, Int) -> Unit,
     private val onNotificationSourceChanged: (ByteArray) -> Unit,
     private val onDataSourceChanged: (ByteArray) -> Unit,
+    /** AMS characteristics (Phase 3): uuid + value. */
+    private val onAmsChanged: (java.util.UUID, ByteArray) -> Unit,
     private val onDescriptorWritten: (BluetoothGattDescriptor, Int) -> Unit,
     private val onCharacteristicWritten: (BluetoothGattCharacteristic, Int) -> Unit,
     private val onMtuChanged: (Int, Int) -> Unit,
@@ -62,6 +64,7 @@ class GattCallback(
         when (characteristic.uuid) {
             AncsConstants.NOTIFICATION_SOURCE_UUID -> onNotificationSourceChanged(value)
             AncsConstants.DATA_SOURCE_UUID -> onDataSourceChanged(value)
+            in AmsClient.CHARACTERISTICS -> onAmsChanged(characteristic.uuid, value)
             else -> Log.d(TAG, "Unhandled characteristic changed: ${characteristic.uuid}")
         }
     }

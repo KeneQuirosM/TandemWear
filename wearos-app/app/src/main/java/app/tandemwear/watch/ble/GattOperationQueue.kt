@@ -42,6 +42,7 @@ class GattOperationQueue(
     private class Operation(
         val name: String,
         val key: OpKey,
+        val timeoutMs: Long,
         val start: () -> Boolean,
         val result: CompletableDeferred<Boolean> = CompletableDeferred()
     )
@@ -61,8 +62,15 @@ class GattOperationQueue(
      * accepted it. The returned Deferred completes with true on a successful callback,
      * false on rejection, error status, timeout or [clear].
      */
-    fun enqueue(name: String, key: OpKey, start: () -> Boolean): Deferred<Boolean> {
-        val op = Operation(name, key, start)
+    fun enqueue(name: String, key: OpKey, start: () -> Boolean): Deferred<Boolean> =
+        enqueue(name, key, timeoutMs, start)
+
+    /**
+     * Same, with a per-operation timeout: low-priority work (AMS) uses a short one so a
+     * stuck write can't hold ANCS behind it for the full default timeout.
+     */
+    fun enqueue(name: String, key: OpKey, timeoutMs: Long, start: () -> Boolean): Deferred<Boolean> {
+        val op = Operation(name, key, timeoutMs, start)
         pending.addLast(op)
         if (current == null) startNext()
         return op.result
@@ -113,9 +121,9 @@ class GattOperationQueue(
                 continue
             }
             timeoutJob = scope.launch {
-                delay(timeoutMs)
+                delay(op.timeoutMs)
                 if (current === op) {
-                    Log.w(TAG, "${op.name}: timed out after ${timeoutMs}ms")
+                    Log.w(TAG, "${op.name}: timed out after ${op.timeoutMs}ms")
                     finish(op, false)
                 }
             }

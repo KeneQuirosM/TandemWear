@@ -10,6 +10,8 @@ import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
 import android.os.SystemClock
 import android.util.Log
+import app.tandemwear.watch.ams.AmsProtocol
+import app.tandemwear.watch.ams.RemoteCommand
 import app.tandemwear.watch.ble.GattOperationQueue.OpKey
 import app.tandemwear.watch.diag.DiagnosticsLog
 import app.tandemwear.watch.diag.LinkStats
@@ -81,6 +83,27 @@ class BleConnectionManager(
     private val bleDispatcher = Dispatchers.Default.limitedParallelism(1)
     private val scope = CoroutineScope(SupervisorJob() + bleDispatcher)
     private val operations = GattOperationQueue(scope)
+
+    /** Set by AncsService: ANCS attribute requests queued or awaiting their Data Source response. */
+    @Volatile
+    var ancsRequestsPending: () -> Int = { 0 }
+
+    /** elapsedRealtime of the last ANCS activity; AMS waits for a quiet moment after it. */
+    @Volatile
+    private var lastAncsActivityMs = 0L
+
+    private val _amsEvents = MutableSharedFlow<AmsPacket>(extraBufferCapacity = EVENT_BUFFER_CAPACITY)
+    /** AMS (music) notifications and status. Never affects the ANCS session. */
+    val amsEvents: SharedFlow<AmsPacket> = _amsEvents.asSharedFlow()
+
+    private val amsClient: AmsClient by lazy {
+        AmsClient(
+            scope, operations,
+            ancsRequestsPending = { ancsRequestsPending() },
+            lastAncsActivityMs = { lastAncsActivityMs },
+            emit = { packet -> if (!_amsEvents.tryEmit(packet)) Log.e(TAG, "AMS event dropped: buffer full") }
+        )
+    }
     private val adapter = (context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter
 
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
@@ -179,13 +202,16 @@ class BleConnectionManager(
         // NS/DS bytes are emitted straight from the binder thread to keep ordering and latency;
         // SharedFlow is thread-safe and the value arrays are fresh copies on API 33+.
         onNotificationSourceChanged = { data ->
+            lastAncsActivityMs = SystemClock.elapsedRealtime()
             if (!_notificationSourceEvents.tryEmit(AncsSessionPacket(currentSessionId, data))) {
                 Log.e(TAG, "NS event dropped: buffer full")
             }
         },
         onDataSourceChanged = { data ->
+            lastAncsActivityMs = SystemClock.elapsedRealtime()
             if (!_dataSourceEvents.tryEmit(data)) Log.e(TAG, "DS fragment dropped: buffer full")
         },
+        onAmsChanged = { uuid, data -> amsClient.onNotification(uuid, data) },
         onDescriptorWritten = { descriptor, status ->
             scope.launch {
                 lastDescriptorStatus = status
@@ -203,6 +229,7 @@ class BleConnectionManager(
                 if (status != BluetoothGatt.GATT_SUCCESS) {
                     Log.e(TAG, "Characteristic write failed: $status for ${characteristic.uuid}")
                 }
+                if (characteristic.uuid in AmsClient.CHARACTERISTICS) amsClient.onWriteStatus(characteristic.uuid, status)
                 operations.onComplete(
                     OpKey.WriteCharacteristic(characteristic.uuid),
                     status == BluetoothGatt.GATT_SUCCESS
@@ -219,6 +246,7 @@ class BleConnectionManager(
             scope.launch {
                 val ok = status == BluetoothGatt.GATT_SUCCESS
                 operations.onComplete(OpKey.ReadCharacteristic(characteristic.uuid), ok)
+                if (ok && characteristic.uuid == AmsProtocol.ENTITY_ATTRIBUTE_UUID) amsClient.onEntityAttributeRead(value)
                 if (ok) onCharacteristicRead(characteristic.uuid, value)
             }
         },
@@ -448,7 +476,10 @@ class BleConnectionManager(
                 "ancs: SESSION ACTIVE (subscribed DS + NS) ${SystemClock.elapsedRealtime() - linkUpAtMs} ms after link up"
             )
             _connectionState.value = ConnectionState.Connected(resolveDeviceName(), currentSessionId)
+            lastAncsActivityMs = SystemClock.elapsedRealtime()
             readGapDeviceName(g)
+            // Music (Phase 3): starts later, only when ANCS is idle; its failures stay inside AmsClient
+            amsClient.onAncsSessionActive(g, currentSessionId)
         } finally {
             isSubscribing = false
         }
@@ -539,6 +570,7 @@ class BleConnectionManager(
             val g = gatt
             val char = controlPointChar
             if (g == null || char == null) return@withContext null
+            lastAncsActivityMs = SystemClock.elapsedRealtime()
             operations.enqueue("control point write", OpKey.WriteCharacteristic(char.uuid)) {
                 g.writeCharacteristic(char, data, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) ==
                     BluetoothStatusCodes.SUCCESS
@@ -546,6 +578,20 @@ class BleConnectionManager(
         } ?: return false
         return result.await()
     }
+
+    /** Music setting (applied live): subscribe now if possible, or stop AMS notifications. */
+    fun setMusicEnabled(enabled: Boolean) {
+        scope.launch { amsClient.setMusicEnabled(enabled) }
+    }
+
+    /** ON_DEMAND mode: the player screen or the Tile needs music data. */
+    fun setMusicDemanded(wanted: Boolean) {
+        scope.launch { amsClient.setDemanded(wanted) }
+    }
+
+    /** Sends a media command to the iPhone (AMS Remote Command). */
+    suspend fun sendMediaCommand(command: RemoteCommand): Boolean =
+        withContext(bleDispatcher) { amsClient.sendCommand(command) }
 
     private fun displayName(device: BluetoothDevice): String =
         cachedDeviceName ?: device.name?.takeIf { it.isNotBlank() } ?: "iPhone"
@@ -637,6 +683,7 @@ class BleConnectionManager(
     }
 
     private fun clearSession() {
+        amsClient.onSessionEnded()
         if (linkUp) recordLinkStats()
         linkUp = false
         operations.clear()

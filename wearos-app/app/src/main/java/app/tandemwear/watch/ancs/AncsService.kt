@@ -148,6 +148,8 @@ class AncsService : Service() {
 
     // Serial queue for Control Point requests
     private val attributeRequestQueue = Channel<AttributeRequest>(Channel.BUFFERED)
+    /** Requests queued or in progress; AMS (music) only uses the GATT queue while this is 0. */
+    private val attributeRequestsPending = java.util.concurrent.atomic.AtomicInteger(0)
     private var requestProcessorJob: Job? = null
 
     // Completed by handleDataSourceEvent when the in-flight request's response is assembled
@@ -217,6 +219,8 @@ class AncsService : Service() {
         scope.launch {
             SettingsRepository(this@AncsService).settings.collect { settings = it }
         }
+
+        connectionManager.ancsRequestsPending = { attributeRequestsPending.get() }
 
         connectionManager.onPhoneBonded = { identity, name ->
             scope.launch {
@@ -496,6 +500,7 @@ class AncsService : Service() {
 
                 // Enqueue attribute fetch (for all notifications including calls)
                 val sessionId = idRegistry.sessionId
+                attributeRequestsPending.incrementAndGet()
                 scope.launch {
                     attributeRequestQueue.send(AttributeRequest(sessionId, event, attrs))
                 }
@@ -549,7 +554,11 @@ class AncsService : Service() {
     private fun startRequestProcessor() {
         requestProcessorJob = scope.launch {
             for (request in attributeRequestQueue) {
-                processAttributeRequest(request)
+                try {
+                    processAttributeRequest(request)
+                } finally {
+                    attributeRequestsPending.updateAndGet { (it - 1).coerceAtLeast(0) }
+                }
             }
         }
     }
@@ -1040,6 +1049,7 @@ class AncsService : Service() {
         pendingAttributeResponse?.complete(Unit)
         var dropped = 0
         while (attributeRequestQueue.tryReceive().isSuccess) dropped++
+        attributeRequestsPending.updateAndGet { (it - dropped).coerceAtLeast(0) }
         if (activeCallUid != -1L) {
             activeCallUid = -1
             vibrator.cancel()

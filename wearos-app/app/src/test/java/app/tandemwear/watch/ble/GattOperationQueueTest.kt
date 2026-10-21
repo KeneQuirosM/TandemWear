@@ -117,4 +117,17 @@ class GattOperationQueueTest {
         assertFalse(q.isBusy)
         assertEquals(0, q.pendingCount)
     }
+
+    @Test
+    fun `per-operation timeout overrides the default`() = runTest {
+        val q = GattOperationQueue(backgroundScope, timeoutMs = 5_000)
+        val ams = q.enqueue("ams write", OpKey.WriteCharacteristic(cp), timeoutMs = 1_500) { true }
+        var ancsStarted = false
+        q.enqueue("ancs", OpKey.WriteCharacteristic(ds)) { ancsStarted = true; true }
+
+        advanceTimeBy(1_501)
+        runCurrent()
+        assertFalse(ams.await())
+        assertTrue("ANCS waited at most the short AMS timeout", ancsStarted)
+    }
 }
