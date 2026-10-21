@@ -89,4 +89,28 @@
     <string name="notification_hidden_text">Nueva notificación de %1$s</string>
     <string name="detail_actions_expired">Las acciones del iPhone ya no están disponibles después de reconectar.</string>
     <string name="action_dismiss_from_watch">Descartar del reloj</string>
+
+    <!-- Ajustes (2.4) -->
+    <string name="settings_title">Ajustes</string>
+    <string name="settings_apps">Apps</string>
+    <string name="settings_sound_vibration">Sonido y vibración</string>
+    <string name="settings_sound_vibration_desc">Por categoría, en los ajustes de notificaciones del reloj</string>
+    <string name="settings_quiet_hours">No molestar</string>
+    <string name="settings_privacy">Privacidad</string>
+    <string name="settings_history">Guardar historial</string>
+    <string name="settings_history_desc">Últimas 50 notificaciones, solo en este reloj</string>
+    <string name="settings_clear_history">Borrar historial</string>
+    <string name="state_on">Activado</string>
+    <string name="state_off">Desactivado</string>
+    <string name="apps_empty">Las apps aparecen aquí cuando envían su primera notificación.</string>
+    <string name="app_rule_on">Se muestran</string>
+    <string name="app_rule_off">Ocultas</string>
+    <string name="app_rule_muted">Silenciadas</string>
+    <string name="app_rule_hidden">Texto oculto</string>
+    <string name="app_rule_muted_hidden">Silenciadas, texto oculto</string>
+    <string name="app_show_notifications">Mostrar notificaciones</string>
+    <string name="app_mute">Silenciar esta app</string>
+    <string name="app_mute_desc">Sin sonido, vibración ni aviso emergente</string>
+    <string name="app_hide">Ocultar el texto</string>
+    <string name="app_hide_desc">Solo se muestra y guarda el nombre de la app</string>
 </resources>

@@ -43,6 +43,7 @@ object AppIconMapper {
         // Messaging
         "net.whatsapp.WhatsApp" to R.drawable.ic_whatsapp,
         "net.whatsapp.WhatsAppSMB" to R.drawable.ic_whatsapp,
+        "ph.telegra.Telegraph" to R.drawable.ic_telegram,
         "org.telegram.Telegram" to R.drawable.ic_telegram,
         "com.facebook.Messenger" to R.drawable.ic_messenger,
         "org.whispersystems.signal" to R.drawable.ic_signal,
@@ -62,9 +63,9 @@ object AppIconMapper {
         // Email & Productivity
         "com.google.Gmail" to R.drawable.ic_gmail,
         "com.microsoft.Office.Outlook" to R.drawable.ic_email,
+        "com.microsoft.skype.teams" to R.drawable.ic_business,
         "com.google.calendar" to R.drawable.ic_calendar,
         "notion.id" to R.drawable.ic_notes,
-        "com.grammarly.keyboard" to R.drawable.ic_notification_default,
 
         // Google Apps
         "com.google.GoogleMobile" to R.drawable.ic_browser,
@@ -77,47 +78,18 @@ object AppIconMapper {
         "com.google.ios.youtube" to R.drawable.ic_youtube,
 
         // Entertainment & Media
+        "com.netflix.Netflix" to R.drawable.ic_entertainment,
+        "com.amazon.aiv.AIVApp" to R.drawable.ic_entertainment,
         "com.spotify.client" to R.drawable.ic_music,
         "com.shazam.Shazam" to R.drawable.ic_music,
 
         // Ride-sharing & Delivery
+        "com.waze.iphone" to R.drawable.ic_location,
         "com.ubercab.UberClient" to R.drawable.ic_rideshare,
         "com.ubercab.UberEats" to R.drawable.ic_rideshare,
 
-        // Finance & Banking
-        "au.com.westpac.ConsultWPC" to R.drawable.ic_wallet,
-        "au.com.westpac.banking" to R.drawable.ic_wallet,
-        "com.stake.stake" to R.drawable.ic_stocks,
-        "au.com.hellostake" to R.drawable.ic_stocks,
-        "com.afterpay.afterpay-consumer" to R.drawable.ic_shopping,
-
-        // Health & Fitness
-        "com.anytimefitness.club" to R.drawable.ic_fitness,
-        "com.anytimefitness.atfmobile" to R.drawable.ic_fitness,
-        "au.com.hotdoc.app" to R.drawable.ic_health,
-        "com.hotdoc.patient" to R.drawable.ic_health,
-
-        // Telecom
-        "com.jio.myjio" to R.drawable.ic_phone,
-        "com.ril.ajio" to R.drawable.ic_phone,
-
-        // Shopping & Services
-        "au.com.auspost" to R.drawable.ic_shopping,
-        "com.auspost.MyPost" to R.drawable.ic_shopping,
-
-        // Smart Home
-        "com.philips.hue.gen4" to R.drawable.ic_notification_default,
-        "com.signify.hue.blue" to R.drawable.ic_notification_default,
-
-        // Gaming
-        "com.microsoft.smartglass" to R.drawable.ic_gaming,
-        "com.microsoft.xboxapp" to R.drawable.ic_gaming,
-
-        // VPN
-        "com.surfshark.vpnclient" to R.drawable.ic_vpn,
-
         // Other
-        "com.producthunt.ProductHuntApp" to R.drawable.ic_social,
+        "com.microsoft.xboxapp" to R.drawable.ic_gaming,
         "com.github.stormcrow" to R.drawable.ic_notification_default,
     )
 

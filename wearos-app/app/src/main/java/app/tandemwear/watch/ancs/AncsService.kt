@@ -26,6 +26,9 @@ import app.tandemwear.watch.data.PairedPhoneStore
 import app.tandemwear.watch.data.history.HistoryEntry
 import app.tandemwear.watch.data.history.HistoryRepository
 import app.tandemwear.watch.data.history.TandemDatabase
+import app.tandemwear.watch.data.settings.SettingsRepository
+import app.tandemwear.watch.data.settings.TandemSettings
+import app.tandemwear.watch.notify.NotificationPolicy
 import app.tandemwear.watch.diag.DiagnosticsLog
 import app.tandemwear.watch.ble.BondStateReceiver
 import app.tandemwear.watch.model.AncsEvent
@@ -101,6 +104,9 @@ class AncsService : Service() {
     private lateinit var notificationManager: NotificationManager
     private lateinit var vibrator: Vibrator
     private lateinit var history: HistoryRepository
+
+    // Latest user settings; the flow below keeps it current, so changes apply live
+    @Volatile private var settings = TandemSettings()
 
     private val dataSourceAssembler = DataSourceAssembler()
     private val appNameCache = mutableMapOf<String, String>()
@@ -190,6 +196,9 @@ class AncsService : Service() {
         notificationManager = getSystemService(NotificationManager::class.java)
         vibrator = getSystemService(Vibrator::class.java)
         history = HistoryRepository(TandemDatabase.get(this).historyDao())
+        scope.launch {
+            SettingsRepository(this@AncsService).settings.collect { settings = it }
+        }
 
         connectionManager.onPhoneBonded = { identity, name ->
             scope.launch {
@@ -426,7 +435,7 @@ class AncsService : Service() {
                     return
                 }
 
-                if (event.isIncomingCall) {
+                if (event.isIncomingCall && NotificationPolicy.shouldRingForCall(settings, minuteOfDay())) {
                     // IMMEDIATELY show call screen — don't wait for attribute fetch.
                     // The NS payload already tells us it's a call. We'll update
                     // the caller name later if attributes arrive in time.
@@ -590,7 +599,8 @@ class AncsService : Service() {
             (notification.positiveActionLabel != null && hasCallIndicator) ||
             (notification.appIdentifier in callApps && hasCallIndicator)
 
-        if (isIncomingCall) {
+        // Quiet hours without the calls exception: the call is posted as a silent notification
+        if (isIncomingCall && NotificationPolicy.shouldRingForCall(settings, minuteOfDay())) {
             Log.i(TAG, "Showing incoming call screen for ${notification.title}")
             showIncomingCall(updatedNotification)
             return
@@ -620,6 +630,16 @@ class AncsService : Service() {
         }
         // Fresh id per (session, UID): a renumbered UID never replaces an old notification
         // silently. MODIFIED events reuse the id and update in place (setOnlyAlertOnce).
+        val decision = NotificationPolicy.decide(settings, notification.appIdentifier, minuteOfDay())
+        val displayAppName = appName ?: notification.appIdentifier
+        if (!decision.show) {
+            // App disabled in Settings: nothing posted or stored, but it stays listed in Settings › Apps
+            scope.launch(Dispatchers.IO) {
+                history.rememberApp(notification.appIdentifier, displayAppName, notification.categoryId)
+            }
+            return
+        }
+
         val notifId = idRegistry.idFor(notification.uid)
         val sessionId = idRegistry.sessionId
 
@@ -630,8 +650,11 @@ class AncsService : Service() {
         )
 
         // Layout: contentTitle = sender, contentText = message preview, subText = app name
-        val senderName = notification.title.ifEmpty { notification.appDisplayName ?: notification.appIdentifier }
-        val messagePreview = notification.message.ifEmpty { notification.subtitle ?: "" }
+        val realSender = notification.title.ifEmpty { notification.appDisplayName ?: notification.appIdentifier }
+        val realPreview = notification.message.ifEmpty { notification.subtitle ?: "" }
+        // "Hide message text" for this app: only the app name and a generic line
+        val senderName = if (decision.hideContent) displayAppName else realSender
+        val messagePreview = if (decision.hideContent) getString(R.string.notification_hidden_text, displayAppName) else realPreview
         val notifTime = parseAncsDate(notification.date)
 
         val builder = NotificationCompat.Builder(this, channelId)
@@ -666,7 +689,7 @@ class AncsService : Service() {
                 NotificationCompat.MessagingStyle(person)
                     .addMessage(messagePreview, notifTime, person)
             )
-        } else if (notification.message.isNotEmpty()) {
+        } else if (notification.message.isNotEmpty() && !decision.hideContent) {
             builder.setStyle(
                 NotificationCompat.BigTextStyle()
                     .bigText(notification.message)
@@ -704,9 +727,21 @@ class AncsService : Service() {
             builder.addAction(R.drawable.ic_close, notification.negativeActionLabel, negativeIntent)
         }
 
-        // Never call setNotificationSilent() — it suppresses the heads-up overlay
-        // on Wear OS. Let the channel handle sound/vibration. We handle vibration
-        // manually via the Vibrator API with cooldown, so no double-buzz.
+        // Never call setNotificationSilent() for normal notifications — it suppresses the
+        // heads-up overlay on Wear OS. Only a muted app or quiet hours ask for exactly that.
+        if (decision.alert == NotificationPolicy.Alert.SILENT) builder.setSilent(true)
+
+        // Lock screen: a public version with only the app name
+        if (decision.privateOnLockScreen) {
+            builder.setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            builder.setPublicVersion(
+                NotificationCompat.Builder(this, channelId)
+                    .setSmallIcon(iconResId)
+                    .setContentTitle(displayAppName)
+                    .setContentText(getString(R.string.notification_hidden_text, displayAppName))
+                    .build()
+            )
+        }
 
         // Auto-cleanup: evict oldest notifications if approaching the system cap
         evictOldestIfNeeded()
@@ -719,15 +754,17 @@ class AncsService : Service() {
             sessionId = sessionId,
             uid = notification.uid,
             appId = notification.appIdentifier,
-            appName = appName ?: notification.appIdentifier,
+            appName = displayAppName,
             categoryId = notification.categoryId,
-            title = senderName,
-            message = notification.message.ifEmpty { notification.subtitle.orEmpty() },
+            // Hidden content is never written to disk
+            title = if (decision.hideContent) "" else realSender,
+            message = if (decision.hideContent) "" else realPreview,
             postedAt = notifTime,
             positiveLabel = notification.positiveActionLabel,
-            negativeLabel = notification.negativeActionLabel
+            negativeLabel = notification.negativeActionLabel,
+            contentHidden = decision.hideContent
         )
-        scope.launch(Dispatchers.IO) { history.record(entry, store = true) }
+        scope.launch(Dispatchers.IO) { history.record(entry, store = settings.historyEnabled) }
     }
 
     /** A (new) iPhone was paired: history from another iPhone or an older bond is dropped. */
@@ -925,10 +962,7 @@ class AncsService : Service() {
         // For now, derive a readable name from the bundle ID
         // A full implementation would use GetAppAttributes, but that requires
         // another CP/DS round trip. We use a simple mapping instead.
-        val name = knownAppNames[appIdentifier] ?: run {
-            // Extract last component: "com.apple.MobileSMS" -> "MobileSMS"
-            appIdentifier.substringAfterLast(".")
-        }
+        val name = KnownApps.displayName(appIdentifier)
         appNameCache[appIdentifier] = name
         return name
     }
@@ -947,6 +981,12 @@ class AncsService : Service() {
                 append(notification.message)
             }
         }
+    }
+
+    /** Local minute of the day, for quiet hours. */
+    private fun minuteOfDay(): Int {
+        val now = java.time.LocalTime.now()
+        return now.hour * 60 + now.minute
     }
 
     private fun parseAncsDate(date: String?): Long {
@@ -984,118 +1024,4 @@ class AncsService : Service() {
             .setSilent(true)
             .build()
     }
-
-    private val knownAppNames = mapOf(
-        // Apple Apps
-        "com.apple.MobileSMS" to "Messages",
-        "com.apple.mobilephone" to "Phone",
-        "com.apple.mobilemail" to "Mail",
-        "com.apple.mobilecal" to "Calendar",
-        "com.apple.facetime" to "FaceTime",
-        "com.apple.reminders" to "Reminders",
-        "com.apple.news" to "News",
-        "com.apple.mobilenotes" to "Notes",
-        "com.apple.Health" to "Health",
-        "com.apple.Fitness" to "Fitness",
-        "com.apple.weather" to "Weather",
-        "com.apple.Maps" to "Maps",
-        "com.apple.Music" to "Music",
-        "com.apple.stocks" to "Stocks",
-        "com.apple.camera" to "Camera",
-        "com.apple.Passbook" to "Wallet",
-        "com.apple.Preferences" to "Settings",
-        "com.apple.mobiletimer" to "Clock",
-        "com.apple.podcasts" to "Podcasts",
-        "com.apple.findmy" to "Find My",
-        "com.apple.Photos" to "Photos",
-        "com.apple.TestFlight" to "TestFlight",
-        "com.apple.AppStore" to "App Store",
-        "com.apple.Passwords" to "Passwords",
-        "com.apple.tips" to "Tips",
-        "com.apple.shortcuts" to "Shortcuts",
-        "com.apple.Home" to "Home",
-        "com.apple.iBooks" to "Books",
-        "com.apple.tv" to "TV",
-        "com.apple.ScreenTimeNotifications" to "Screen Time",
-
-        // Messaging
-        "net.whatsapp.WhatsApp" to "WhatsApp",
-        "net.whatsapp.WhatsAppSMB" to "WhatsApp Business",
-        "org.telegram.Telegram" to "Telegram",
-        "com.facebook.Messenger" to "Messenger",
-        "org.whispersystems.signal" to "Signal",
-        "com.slack.Slack" to "Slack",
-        "com.hammerandchisel.discord" to "Discord",
-
-        // Social
-        "com.atebits.Tweetie2" to "X",
-        "com.burbn.instagram" to "Instagram",
-        "com.facebook.Facebook" to "Facebook",
-        "com.linkedin.LinkedIn" to "LinkedIn",
-        "com.zhiliaoapp.musically" to "TikTok",
-        "com.toyopagroup.picaboo" to "Snapchat",
-        "com.burbn.barcelona" to "Threads",
-        "com.reddit.Reddit" to "Reddit",
-
-        // Email & Productivity
-        "com.google.Gmail" to "Gmail",
-        "com.microsoft.Office.Outlook" to "Outlook",
-        "com.google.calendar" to "Google Calendar",
-        "notion.id" to "Notion",
-        "com.grammarly.keyboard" to "Grammarly",
-
-        // Google Apps
-        "com.google.GoogleMobile" to "Google",
-        "com.google.Maps" to "Google Maps",
-        "com.google.Drive" to "Google Drive",
-        "com.google.Photos" to "Google Photos",
-        "com.google.photos" to "Google Photos",
-        "com.google.Home" to "Google Home",
-        "com.google.chrome.ios" to "Chrome",
-        "com.google.ios.youtube" to "YouTube",
-
-        // Entertainment & Media
-        "com.spotify.client" to "Spotify",
-        "com.shazam.Shazam" to "Shazam",
-
-        // Ride-sharing & Delivery
-        "com.ubercab.UberClient" to "Uber",
-        "com.ubercab.UberEats" to "Uber Eats",
-
-        // Finance & Banking
-        "au.com.westpac.ConsultWPC" to "Westpac",
-        "au.com.westpac.banking" to "Westpac",
-        "com.stake.stake" to "Stake",
-        "au.com.hellostake" to "Stake",
-        "com.afterpay.afterpay-consumer" to "Afterpay",
-
-        // Health & Fitness
-        "com.anytimefitness.club" to "Anytime Fitness",
-        "com.anytimefitness.atfmobile" to "Anytime Fitness",
-        "au.com.hotdoc.app" to "HotDoc",
-        "com.hotdoc.patient" to "HotDoc",
-
-        // Telecom
-        "com.jio.myjio" to "Jio",
-        "com.ril.ajio" to "Jio",
-
-        // Shopping & Services
-        "au.com.auspost" to "AusPost",
-        "com.auspost.MyPost" to "AusPost",
-
-        // Smart Home
-        "com.philips.hue.gen4" to "Hue",
-        "com.signify.hue.blue" to "Hue",
-
-        // Gaming
-        "com.microsoft.smartglass" to "Xbox",
-        "com.microsoft.xboxapp" to "Xbox",
-
-        // VPN
-        "com.surfshark.vpnclient" to "Surfshark",
-
-        // Other
-        "com.producthunt.ProductHuntApp" to "Product Hunt",
-        "com.github.stormcrow" to "GitHub",
-    )
 }

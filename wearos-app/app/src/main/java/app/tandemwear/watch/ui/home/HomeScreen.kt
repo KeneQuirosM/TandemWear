@@ -8,6 +8,7 @@ import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -43,6 +44,7 @@ fun HomeScreen(
     viewModel: MainViewModel,
     onPair: () -> Unit,
     onAbout: () -> Unit,
+    onSettings: () -> Unit,
     onOpenNotification: (Long) -> Unit
 ) {
     val status by viewModel.homeStatus.collectAsState()
@@ -69,14 +71,13 @@ fun HomeScreen(
             }
         }
 
-        if (status is HomeStatus.Connected) {
-            item {
-                OutlinedButton(
-                    onClick = { viewModel.clearAllNotifications() },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.action_clear_notifications), fontSize = TandemType.label) }
-                )
-            }
+        item {
+            FilledTonalButton(
+                onClick = onSettings,
+                modifier = Modifier.fillMaxWidth(),
+                icon = { Icon(Icons.Rounded.Settings, contentDescription = null) },
+                label = { Text(stringResource(R.string.settings_title), fontSize = TandemType.label) }
+            )
         }
 
         item {
@@ -86,22 +87,6 @@ fun HomeScreen(
                 icon = { Icon(Icons.Rounded.Info, contentDescription = null) },
                 label = { Text(stringResource(R.string.about_title), fontSize = TandemType.label) }
             )
-        }
-
-        if (status is HomeStatus.Connected) {
-            item {
-                OutlinedButton(
-                    onClick = { viewModel.disconnect() },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = {
-                        Text(
-                            stringResource(R.string.action_disconnect),
-                            fontSize = TandemType.label,
-                            color = TandemColors.stateAttention
-                        )
-                    }
-                )
-            }
         }
     }
 }

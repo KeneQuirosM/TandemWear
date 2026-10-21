@@ -95,6 +95,30 @@
     <string name="detail_actions_expired">The iPhone actions are no longer available after reconnecting.</string>
     <string name="action_dismiss_from_watch">Dismiss from watch</string>
 
+    <!-- Settings (2.4) -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_apps">Apps</string>
+    <string name="settings_sound_vibration">Sound and vibration</string>
+    <string name="settings_sound_vibration_desc">Per category, in the watch\'s notification settings</string>
+    <string name="settings_quiet_hours">Do not disturb</string>
+    <string name="settings_privacy">Privacy</string>
+    <string name="settings_history">Keep history</string>
+    <string name="settings_history_desc">Last 50 notifications, on this watch only</string>
+    <string name="settings_clear_history">Clear history</string>
+    <string name="state_on">On</string>
+    <string name="state_off">Off</string>
+    <string name="apps_empty">Apps appear here after they send their first notification.</string>
+    <string name="app_rule_on">Shown</string>
+    <string name="app_rule_off">Hidden</string>
+    <string name="app_rule_muted">Silent</string>
+    <string name="app_rule_hidden">Text hidden</string>
+    <string name="app_rule_muted_hidden">Silent, text hidden</string>
+    <string name="app_show_notifications">Show notifications</string>
+    <string name="app_mute">Mute this app</string>
+    <string name="app_mute_desc">No sound, vibration or pop-up</string>
+    <string name="app_hide">Hide message text</string>
+    <string name="app_hide_desc">Only the app name is shown and stored</string>
+
     <!-- License texts stay in English (legal text) -->
     <string name="license_mit_body" translatable="false">MIT License. Copyright (c) 2026 Karthik Rajendran (WearBridge, original work); Copyright (c) 2026 TandemWear contributors (modifications).\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</string>
     <string name="license_apache_body" translatable="false">Licensed under the Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0). Distributed on an \"AS IS\" basis, without warranties or conditions of any kind.</string>
