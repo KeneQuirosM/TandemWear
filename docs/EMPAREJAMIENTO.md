@@ -92,6 +92,49 @@ Otras situaciones:
   3. Empareja de nuevo con TW Probe ANCS.
   4. Si después vuelve a aparecer `B8:45:EB… DUAL`, iOS crea el bond clásico como parte del emparejamiento; si no, era un resto antiguo.
 
+## Reconexión: ANCS tarda en aparecer (log del 21-10-2026)
+
+**Observado:** tras reconectar, el primer descubrimiento devolvió 5 servicios sin ANCS. La app reintentó 2 veces a ~2 s y se rindió con un error terminal. Solo se recuperó porque el iPhone cerró y reabrió el enlace 3 s después.
+
+**Causa probable:** iOS solo publica ANCS cuando el enlace ya está cifrado con las claves del bond. El primer descubrimiento llega antes, o sale de la caché GATT de Android.
+
+**Ahora** (`AncsDiscoveryPolicy` + `BleConnectionManager.waitForAncs`):
+- **Reintentos más pacientes:** esperas de 1,5 s, 3 s, 5 s, 8 s y 12 s (≈30 s en total), y se re-descubre en cuanto llega una de estas señales:
+  - **Service Changed** (`onServiceChanged`, API 31+), que es lo que Apple recomienda vigilar;
+  - el aviso de **cifrado activado** de Android 16 (`ACTION_ENCRYPTION_CHANGE`; su entrega depende del target y del fabricante, por verificar);
+  - o el vencimiento del tiempo.
+- **Caché GATT:** desde el 3.er reintento se vacía con `BluetoothGatt.refresh()` antes de re-descubrir. No es API pública; el log dice si funcionó.
+- **Nunca error terminal con el iPhone emparejado:** si se agotan los reintentos, se suelta el enlace y la reconexión normal vuelve a intentarlo. El error «sin ANCS» solo aparece durante el emparejamiento con un dispositivo nuevo.
+- **Tiempos en el log:** `ancs: ANCS visible N ms after link up (discovery retries: k)` y `ancs: SESSION ACTIVE … N ms after link up`.
+- Si ANCS **desaparece** con la sesión activa (iOS lo despublica), la sesión se da por terminada y se espera a que vuelva.
+
+## Reconexión: los UID de ANCS se renumeran
+
+**Observado:** en cada sesión el iPhone renumera los UID: 0..N para las existentes, y las nuevas siguen desde ahí. El id de Android salía del UID, así que una notificación nueva podía **reemplazar en silencio** a una vieja con el mismo número, y un `REMOVED` podía borrar la notificación equivocada.
+
+**Ahora:**
+- **Id propio por sesión** (`NotificationIdRegistry`): cada par (sesión, UID) recibe un id de Android nuevo, de un contador persistido que nunca reutiliza ids. Una notificación nueva siempre usa un id nuevo, así que **siempre vibra y se muestra**. Las modificaciones (`MODIFIED`) actualizan la misma en silencio (`setOnlyAlertOnce`).
+- **Token de sesión:** el reloj etiqueta los eventos Notification Source con la sesión, incluso los que llegan antes que el estado «Connected».
+- **Al terminar una sesión** se limpia todo lo ligado al UID:
+  - mapeos UID → id;
+  - peticiones de atributos pendientes;
+  - ensamblador del Data Source;
+  - llamada activa (se cierra su pantalla).
+- `REMOVED` solo cancela notificaciones **de la sesión actual**.
+- **Las notificaciones de sesiones anteriores se quedan en el reloj.** Sus botones solo las descartan en el reloj: nunca envían la acción al iPhone, porque su UID ahora nombra otra notificación.
+- **Log:** una sola línea `ancs: N old notifications skipped (PreExisting)` en vez de una por evento.
+
+**Por decidir contigo:** prefiero conservar las notificaciones viejas (no desaparecen al salir del rango un momento). La alternativa es borrarlas al reconectar, que deja el reloj idéntico al iPhone pero pierde las no leídas en cada corte.
+
+### Pruebas manuales
+
+| Prueba | Qué hacer | Qué debería pasar |
+|---|---|---|
+| ANCS lento | Reconecta varias veces (fuera de rango, Bluetooth del iPhone) | Si el primer descubrimiento no trae ANCS: `bonded but no ANCS yet … waiting up to …`, luego `re-discovering (trigger: service changed / encryption on / timer)` y `ANCS visible N ms after link up`. Nunca `Error`. |
+| UID renumerados | Deja 2–3 notificaciones en el reloj, sal de rango, vuelve y recibe un mensaje nuevo | Una línea `N old notifications skipped`; el mensaje nuevo **vibra y aparece** sin reemplazar a ninguna vieja |
+| Borrado sincronizado | Tras reconectar, borra en el iPhone una notificación **nueva** | Desaparece del reloj; las viejas siguen |
+| Acción sobre una vieja | Pulsa «Descartar» en una notificación de antes de la reconexión | Se quita del reloj; el log dice `dismissed locally only`; en el iPhone no pasa nada |
+
 ## (4) El iPhone olvida el reloj (Android 16)
 
 Si en el iPhone haces «Omitir dispositivo», el iPhone borra sus claves, pero el reloj aún tiene el bond.

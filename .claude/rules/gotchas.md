@@ -37,3 +37,7 @@
 18. **Two bonds for one iPhone**: its public address (`B8:45:EB…`, Apple OUI) showed up as a separate `DUAL`, `BONDED` device before TandemWear's LE bond (`7F:68:…`). Probably a classic (BR/EDR) bond on the dual-mode watch. Always bond over the LE link; treat other bonded devices as PROBE, never as the paired iPhone.
 
 19. **The stored bond address can look like an RPA**: Android keeps an LE bond under the address used when bonding (pseudo address) and keeps reporting later, resolved RPAs with it. `7F:68:…` (top bits `01`) is expected; don't "fix" it by matching on the public address.
+
+20. **ANCS UIDs are renumbered every session**: after a reconnect the iPhone numbers existing notifications 0..N again. Never derive Android ids from UIDs; use `NotificationIdRegistry` (fresh id per session+UID) and drop all UID state when a session ends. Actions on notifications from an ended session are local-only.
+
+21. **ANCS can take seconds to appear after a reconnect**: the first discovery on a bonded link may return only ~5 services. Wait for Service Changed / encryption or retry with backoff (`AncsDiscoveryPolicy`); never treat it as terminal for the paired iPhone.
