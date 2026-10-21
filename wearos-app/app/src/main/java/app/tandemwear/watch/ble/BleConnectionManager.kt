@@ -90,6 +90,16 @@ class BleConnectionManager(
 
     private var gatt: BluetoothGatt? = null
     private var linkUp = false
+    /** How the current GATT client was opened — logged to tell reconnection paths apart. */
+    private var openedWithAutoConnect = false
+
+    /**
+     * Whether the watch keeps a background autoConnect request to the bonded iPhone.
+     * Debug builds can turn it off to test the "iPhone reconnects to the advertising
+     * watch" path on its own.
+     */
+    @Volatile
+    var backgroundReconnectEnabled = true
     private var targetDevice: BluetoothDevice? = null
     private var reconnectJob: Job? = null
     private var reconnectDelay = INITIAL_RECONNECT_DELAY_MS
@@ -211,6 +221,10 @@ class BleConnectionManager(
      */
     fun reconnect(device: BluetoothDevice) {
         scope.launch {
+            if (!backgroundReconnectEnabled) {
+                DiagnosticsLog.log("gatt: background reconnect disabled (debug strategy)")
+                return@launch
+            }
             val g = gatt
             if (g != null && g.device.address.equals(device.address, ignoreCase = true)) {
                 Log.d(TAG, "Already connected/connecting to ${device.address}, skipping reconnect")
@@ -227,6 +241,7 @@ class BleConnectionManager(
         serviceDiscoveryRetries = 0
 
         closeGatt()
+        openedWithAutoConnect = autoConnect
         // A background request may wait for hours (iPhone away): don't show "Connecting…"
         _connectionState.value = if (autoConnect) {
             ConnectionState.Disconnected("Waiting for the iPhone")
@@ -248,7 +263,10 @@ class BleConnectionManager(
         reconnectDelay = INITIAL_RECONNECT_DELAY_MS
         bondedSnapshot = bondedAddresses()
         _connectionState.value = ConnectionState.Connecting(displayName(g.device))
-        DiagnosticsLog.log("gatt: connected ${g.device.address} bond=${bondName(g.device.bondState)}")
+        DiagnosticsLog.log(
+            "gatt: connected ${g.device.address} bond=${bondName(g.device.bondState)} " +
+                "via=${if (openedWithAutoConnect) "background request" else "attach to inbound link"}"
+        )
 
         scope.launch {
             // Higher MTU = fewer DS fragments. Failure is not fatal: ANCS works at 23.
@@ -425,7 +443,7 @@ class BleConnectionManager(
                 DiagnosticsLog.log("bond: couldn't single out the new bond, using link address $it")
             }
         bondedSnapshot = bondedAddresses()
-        DiagnosticsLog.log("bond: iPhone identity address $identity (link address ${device.address})")
+        DiagnosticsLog.log("bond: saved bond address $identity (Android's stable handle for this bond; link address ${device.address})")
         adapter?.getRemoteDevice(identity)?.let { targetDevice = it }
         onPhoneBonded?.invoke(identity, device.name)
     }
@@ -544,7 +562,7 @@ class BleConnectionManager(
             val device = targetDevice ?: return@launch
             // Only a bonded identity address can be reconnected to in the background: an
             // unbonded private address will have rotated. Unbonded → wait for the iPhone.
-            if (device.bondState == BluetoothDevice.BOND_BONDED) {
+            if (device.bondState == BluetoothDevice.BOND_BONDED && backgroundReconnectEnabled) {
                 openGatt(device, autoConnect = true)
             } else {
                 DiagnosticsLog.log("gatt: not bonded yet; waiting for the iPhone to connect again")

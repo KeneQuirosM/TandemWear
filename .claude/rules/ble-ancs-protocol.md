@@ -16,7 +16,7 @@
 2. User taps the watch in iPhone › Settings › Bluetooth; the iPhone opens the LE link — seen by `InboundLinkMonitor` (GATT server, no services)
 3. `PairingPolicy.onInboundLink` → ATTACH → `BleConnectionManager.attachInbound` opens a GATT client on that link
 4. `requestMtu(512)` → `discoverServices()` (ANCS may be visible before bonding, but its characteristics require authorization)
-5. Not bonded → `createBond()` over LE → `BOND_BONDED` → store the identity address that newly appears in the bonded list (`PairingPolicy.newlyBondedAddress`) in `PairedPhoneStore`
+5. Not bonded → `createBond()` over LE → `BOND_BONDED` → store the address that newly appears in the bonded list (Android's stable handle for the bond — it may look like an RPA, e.g. `7F:…`; Android resolves later RPAs to it) (`PairingPolicy.newlyBondedAddress`) in `PairedPhoneStore`
 6. Subscribe DS CCCD → Subscribe NS CCCD → session active (guard against double subscription)
 7. NS events → fetch attributes via CP → parse DS → post Android notification
 
@@ -24,8 +24,8 @@
 
 ## Reconnection
 
-- Never identify the iPhone by name or by a pre-bond address (RPAs rotate). Only the bonded identity address in `PairedPhoneStore`, trusted while the bond exists
-- Two paths: (a) watch advertises in RECONNECT mode (~1 s interval) and the iPhone reconnects to it; (b) `connectGatt(autoConnect=true)` to the bonded identity address
+- Never identify the iPhone by name or by an address seen before bonding. Only the bond address in `PairedPhoneStore`, trusted while the bond exists
+- Two paths: (a) watch advertises in RECONNECT mode (~1 s interval) and the iPhone reconnects to it; (b) `connectGatt(autoConnect=true)` to the bond address. Which one actually reconnects on iOS 26 is being measured (debug strategy BOTH / ADVERTISE_ONLY / AUTOCONNECT_ONLY in TW Probe ANCS)
 - Advertising stops while connected and in `RepairNeeded`
 - Exponential backoff 3s → 30s cap; only bonded targets are re-requested
 - `BootReceiver` starts the service only if paired + BLUETOOTH_CONNECT granted; adapter ON/OFF restarts the link layer
@@ -35,7 +35,7 @@
 ## Silent/Pre-existing Notification Handling
 
 - Pre-existing notifications (`EVENT_FLAG_PRE_EXISTING`) are skipped at NS event level — no GATT writes, no haptics
-- 60-second reconnection grace period skips all non-call NS events to avoid vibration storms
+- No time-based grace window (removed: it dropped new notifications for 60 s after every reconnect). `AncsEventFilter`: only `PreExisting` is skipped; a still-ringing call is shown
 - **Never use `setNotificationSilent()`** — it kills heads-up overlays on Wear OS
 
 ## Notification Channels

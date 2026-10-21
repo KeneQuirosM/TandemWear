@@ -34,34 +34,63 @@ Diseño:
 
 **Por verificar en el reloj:** qué diálogo muestra el Galaxy Watch 4 durante el emparejamiento (confirmación numérica o ninguno).
 
-## (2) Direcciones privadas rotativas: cómo se identifica y reconecta
+## (2) Direcciones privadas rotativas: qué se guarda y cómo se reconecta
 
-- Antes del bond solo vemos la dirección privada resoluble (RPA), que cambia cada pocos minutos. **No se guarda.**
-- Al emparejar, el iPhone entrega su **dirección de identidad** y su **IRK**. Android guarda el bond bajo la dirección de identidad y el controlador resuelve con la IRK cada RPA nueva a esa identidad.
-- Qué guardamos: la dirección que aparece **nueva** en la lista de dispositivos *bonded* justo después de emparejar (`PairingPolicy.newlyBondedAddress`, diferencia antes/después). Es la identidad, no la RPA.
-  - Solo se confía en ella mientras el bond exista: `PairedPhoneStore.bondedPhone()` devuelve null si el bond desapareció, y entonces la app vuelve a pedir emparejar.
-  - No hay coincidencia por nombre («iPhone»): eso se eliminó.
+**Resultado del 21-10-2026:** el log dijo `iPhone identity address 7F:68:82:DE:94:D2 (link address 7F:68:82:DE:94:D2)`.
 
-Reconexión, con dos caminos en paralelo:
+**Corrección:** `7F:68:…` **no** es la dirección de identidad del iPhone. El byte `0x7F` empieza por los bits `01`, así que es una dirección privada resoluble (RPA). Ahora el log la llama «bond address».
 
-1. **El iPhone vuelve al reloj.** Con un iPhone emparejado y desconectado, el reloj anuncia en modo lento (≈1 s de intervalo) y el iPhone reconecta solo a su accesorio emparejado. Al entrar ese enlace (dirección de identidad = la guardada), el reloj abre el cliente GATT.
-2. **Conexión en segundo plano del reloj.** Un `connectGatt(autoConnect=true)` a la dirección de identidad deja una petición en la lista del controlador, que la resuelve contra las RPA del iPhone.
+**Por qué es lo correcto igualmente:**
+- Cuando Android empareja con un dispositivo que usa RPA, guarda el bond bajo la dirección con la que se emparejó (en AOSP, la *pseudo address*). La identidad y la IRK quedan asociadas internamente.
+- Cuando el iPhone vuelve con una RPA nueva, el controlador la resuelve con la IRK y Android la sigue reportando a las apps con esa misma dirección del bond.
+- Por eso `7F:68:…` es el identificador estable que Android nos da para ese bond, aunque tenga forma de RPA.
+- La dirección pública de identidad solo se obtiene con API de sistema (`getIdentityAddress`), que no es pública.
 
-Mientras está conectado, el reloj deja de anunciar (ahorra batería).
+**Qué se guarda:** la dirección que aparece **nueva** en la lista de dispositivos *bonded* al terminar de emparejar. En tu log, `B8:45:EB…` ya estaba antes; la nueva fue `7F:68:…`.
+
+**Cómo se reconoce después:**
+- Al subir un enlace, el log muestra `inbound: <dirección> → ATTACH` si coincide con la guardada, o `→ PROBE` si es otro dispositivo *bonded*.
+- Si tras reiniciar el reloj o pasados más de 15 min (rotación de la RPA del iPhone) sigue saliendo `7F:68:… → ATTACH`, queda confirmado.
+- Si sale otra dirección con `PROBE`, el bond se reporta de otra forma y lo ajusto.
+
+### Quién reconecta: el iPhone, el reloj o ambos
+
+Tras el bond el reloj **dejó de anunciarse porque estaba conectado**. Es intencional: no tiene sentido anunciar con la sesión ANCS activa, y ahorra batería. Al desconectarse se activan **dos caminos a la vez**:
+
+1. **El reloj se anuncia en modo lento** (≈1 s). Si iOS reconecta por su cuenta a su accesorio emparejado, el iPhone abre el enlace.
+2. **El reloj deja una conexión en segundo plano** (`connectGatt(autoConnect=true)`) a la dirección del bond. Esta solo prospera si el iPhone emite paquetes conectables con su RPA.
+
+**Por verificar:** no sé con certeza cuál de los dos hace el trabajo en iOS 26 + One UI 8. Las dos razones:
+- Apple no documenta cuándo iOS reconecta a accesorios de sistema.
+- Cuando ambos caminos están activos, el log no distingue quién inició el enlace: el GATT server ve todos los enlaces LE.
+
+Para medirlo, **TW Probe ANCS** tiene ahora un botón **«Reconnect via:»** con tres modos:
+
+| Modo | Qué queda activo |
+|---|---|
+| `BOTH` (por defecto) | Anuncio + conexión en segundo plano |
+| `ADVERTISE_ONLY` | Solo anuncio: si reconecta, lo hizo el iPhone |
+| `AUTOCONNECT_ONLY` | Solo `autoConnect`: si reconecta, lo hizo el reloj |
+
+El log también indica `gatt: connected … via=background request` o `via=attach to inbound link`.
+
+Prueba recomendada: repite «fuera de rango» y «apagar Bluetooth del iPhone» en `ADVERTISE_ONLY` y luego en `AUTOCONNECT_ONLY`. Con eso decidimos si conviene mantener los dos caminos (más batería) o solo uno.
 
 Otras situaciones:
 - **Bluetooth del reloj apagado y encendido:** se reabren el monitor y el anuncio y se relanza la reconexión.
-- **Reinicio del reloj:** `BootReceiver` arranca el servicio solo si hay iPhone emparejado y el permiso de Bluetooth está concedido.
+- **Reinicio del reloj:** `BootReceiver` arranca el servicio si hay iPhone emparejado y el permiso de Bluetooth está concedido.
 
-**Por verificar en el reloj:** que el iPhone reconecte solo al volver al rango y tras apagar y encender su Bluetooth, y cuánto tarda.
+## (3) Los enlaces de `B8:45:EB:2A:C6:84`
 
-## (3) La conexión cerrada por `B8:45:EB:2A:C6:84` a las 19:46:21
-
-- El prefijo `B8:45:EB` está registrado a **Apple** ([maclookup.app](https://maclookup.app/macaddress/b845eb)). Es casi seguro la **dirección de identidad (pública) de tu iPhone**: la misma que, tras emparejar, debería quedar guardada.
-- No es la RPA `61:59:3B…` que usó el enlace LE: no hubo un «GATT client disconnected» a la vez. Fue un **enlace distinto**, del que el servidor GATT solo notificó el cierre, sin evento de conexión. Aparece dos veces porque Android la notificó dos veces.
-- Hipótesis más probable: al ver «Galaxy Watch4» en Ajustes, que es un dispositivo de modo dual, iOS abrió también un enlace **Bluetooth clásico (BR/EDR)** con su dirección pública. Al no encontrar nada, lo cerró unos 22 s después (estado 0 = cierre normal). Ocurrió en las dos rondas, unos 22 s tras cada interacción.
-- Impacto: ninguno para ANCS. Lo que hay que evitar es emparejar por clásico (un bond clásico no da claves LE). Por eso el reloj inicia el bond sobre el enlace LE.
-- **Por verificar:** ahora TW Probe y los logs registran `type=LE/CLASSIC/DUAL` y el estado de bond de cada enlace. Si en el próximo log `B8:45:EB…` sale como `CLASSIC`, queda confirmado.
+- El prefijo `B8:45:EB` está registrado a **Apple** ([maclookup.app](https://maclookup.app/macaddress/b845eb)). Es la **dirección pública de tu iPhone**: la de Bluetooth clásico, que en los iPhone también es su identidad.
+- En la prueba del 21-10 aparece como `type=DUAL bond=BONDED` **antes** de nuestro emparejamiento. Es decir, el reloj ya tenía un bond con el iPhone por esa dirección, distinto del bond LE (`7F:68:…`) que creó TandemWear.
+- Origen probable, **por verificar**: un emparejamiento por Bluetooth clásico. O bien iOS, al tocar el reloj (dispositivo dual) en Ajustes, emparejó también por clásico en la primera prueba, o bien hubo un emparejamiento anterior desde los ajustes de Bluetooth del reloj. El enlace que se cerró a las 19:46 en el primer TW Probe era ese clásico.
+- **Impacto:** para ANCS, ninguno. TandemWear lo trata como `PROBE` (otro dispositivo) y no lo usa. Pero son dos bonds para el mismo iPhone, y conviene saber si iOS los crea siempre.
+- **Para averiguarlo:** al abrir el emparejamiento, el log lista ahora los bonds previos (`pairing: bonded before pairing: …`). Sigue estos pasos:
+  1. En el reloj: Ajustes › Conexiones › Bluetooth, desvincula todo lo que sea el iPhone.
+  2. En el iPhone: Omitir dispositivo.
+  3. Empareja de nuevo con TW Probe ANCS.
+  4. Si después vuelve a aparecer `B8:45:EB… DUAL`, iOS crea el bond clásico como parte del emparejamiento; si no, era un resto antiguo.
 
 ## (4) El iPhone olvida el reloj (Android 16)
 
@@ -90,7 +119,7 @@ La app «TW Probe ANCS» usa **el mismo código** que la app real (servicio, emp
 3. En el iPhone: Ajustes › Bluetooth › toca el reloj › acepta **Enlazar**. Si el reloj muestra un diálogo, acéptalo también.
 4. Si iOS pregunta por las notificaciones, permite. Verifica en (i) que **Compartir notificaciones del sistema** está activo.
 5. Espera `ancs: SESSION ACTIVE`.
-6. Espera **60 s**: la app ignora lo que llega en el primer minuto tras conectar (bug conocido, P1-5, se corrige en la Fase 1). Luego mándate un mensaje desde otro teléfono.
+6. Mándate un mensaje desde otro teléfono. Ya no hace falta esperar 60 s: esa ventana de gracia se eliminó y solo se ignora lo marcado como `PreExisting`.
 7. Debe aparecer `FIRST NOTIFICATION RECEIVED: app=… title=… message=…`. En el APK debug se ve el texto; en release solo longitudes.
 8. Log completo:
    ```bat
@@ -105,8 +134,8 @@ Qué esperar en el log, en orden:
 5. `ANCS=true AMS=true`
 6. `bond: requesting pairing`
 7. `bond: BONDED`
-8. `bond: iPhone identity address …`
-9. `pairing: saved iPhone …`
+8. `bond: saved bond address …`
+9. `pairing: saved iPhone …` (la dirección del bond; ver punto 2)
 10. `ancs: SESSION ACTIVE`
 11. `FIRST NOTIFICATION RECEIVED`
 

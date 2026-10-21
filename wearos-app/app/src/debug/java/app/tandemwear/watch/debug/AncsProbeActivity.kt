@@ -13,6 +13,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import app.tandemwear.watch.ancs.AncsService
+import app.tandemwear.watch.data.PairedPhoneStore
 import app.tandemwear.watch.diag.DiagnosticsLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -66,6 +67,19 @@ class AncsProbeActivity : Activity() {
             addView(Button(this@AncsProbeActivity).apply {
                 text = "Reconnect"
                 setOnClickListener { sendToService(AncsService.ACTION_START) }
+            })
+            addView(Button(this@AncsProbeActivity).apply {
+                // Isolate who reconnects: the iPhone (watch advertises) or the watch (autoConnect)
+                val store = PairedPhoneStore(this@AncsProbeActivity)
+                text = "Reconnect via: ${store.reconnectStrategy}"
+                setOnClickListener {
+                    val all = PairedPhoneStore.ReconnectStrategy.entries
+                    val next = all[(all.indexOf(store.reconnectStrategy) + 1) % all.size]
+                    store.reconnectStrategy = next
+                    text = "Reconnect via: $next"
+                    DiagnosticsLog.log("probe: reconnect strategy = $next")
+                    sendToService(AncsService.ACTION_START)
+                }
             })
             addView(Button(this@AncsProbeActivity).apply {
                 text = "Clear log"

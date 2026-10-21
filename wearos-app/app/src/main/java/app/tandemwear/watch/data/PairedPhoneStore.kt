@@ -20,7 +20,23 @@ class PairedPhoneStore(context: Context) {
         private const val PREFS = "paired_phone"
         private const val KEY_ADDRESS = "identity_address"
         private const val KEY_NAME = "name"
+        private const val KEY_RECONNECT_STRATEGY = "reconnect_strategy"
     }
+
+    /** Which reconnection paths run while the paired iPhone is away (debug knob). */
+    enum class ReconnectStrategy(val useAdvertising: Boolean, val useBackgroundRequest: Boolean) {
+        BOTH(true, true),
+        ADVERTISE_ONLY(true, false),
+        AUTOCONNECT_ONLY(false, true)
+    }
+
+    var reconnectStrategy: ReconnectStrategy
+        get() = prefs.getString(KEY_RECONNECT_STRATEGY, null)
+            ?.let { name -> ReconnectStrategy.entries.firstOrNull { it.name == name } }
+            ?: ReconnectStrategy.BOTH
+        set(value) {
+            prefs.edit().putString(KEY_RECONNECT_STRATEGY, value.name).apply()
+        }
 
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
@@ -36,8 +52,24 @@ class PairedPhoneStore(context: Context) {
             .apply()
     }
 
+    /** Forget the paired iPhone (keeps debug settings). */
     fun clear() {
-        prefs.edit().clear().apply()
+        prefs.edit().remove(KEY_ADDRESS).remove(KEY_NAME).apply()
+    }
+
+    /** "address type name" for every bonded device — diagnostics only. */
+    fun describeBondedDevices(): String = try {
+        manager.adapter?.bondedDevices.orEmpty().joinToString { device ->
+            val type = when (device.type) {
+                BluetoothDevice.DEVICE_TYPE_LE -> "LE"
+                BluetoothDevice.DEVICE_TYPE_CLASSIC -> "CLASSIC"
+                BluetoothDevice.DEVICE_TYPE_DUAL -> "DUAL"
+                else -> "UNKNOWN"
+            }
+            "${device.address} $type \"${device.name ?: "?"}\""
+        }.ifEmpty { "none" }
+    } catch (e: SecurityException) {
+        "unknown (no permission)"
     }
 
     /** Addresses currently bonded to the watch (needs BLUETOOTH_CONNECT). */

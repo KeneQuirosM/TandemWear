@@ -34,4 +34,6 @@
 
 17. **ANCS is visible before bonding but not usable**: on SDK 36 / iOS 26 discovery shows ANCS and AMS with `bond=NONE`, yet the characteristics "require authorization". Bond before subscribing.
 
-18. **Two links from one iPhone**: during pairing the TW Probe log showed a second link from the iPhone's public identity address (`B8:45:EB…`, Apple OUI) closing ~22 s later, besides the LE link from its private address. Likely a BR/EDR attempt on the dual-mode watch. Always bond over the LE link.
+18. **Two bonds for one iPhone**: its public address (`B8:45:EB…`, Apple OUI) showed up as a separate `DUAL`, `BONDED` device before TandemWear's LE bond (`7F:68:…`). Probably a classic (BR/EDR) bond on the dual-mode watch. Always bond over the LE link; treat other bonded devices as PROBE, never as the paired iPhone.
+
+19. **The stored bond address can look like an RPA**: Android keeps an LE bond under the address used when bonding (pseudo address) and keeps reporting later, resolved RPAs with it. `7F:68:…` (top bits `01`) is expected; don't "fix" it by matching on the public address.
