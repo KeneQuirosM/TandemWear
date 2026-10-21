@@ -108,6 +108,19 @@ class AncsService : Service() {
     private lateinit var history: HistoryRepository
     private var surfaceUpdateJob: Job? = null
 
+    // Restored-notification check (B2): wall-clock start of the ANCS session, and whether the
+    // clocks/zones looked unreliable during it (then everything counts as new)
+    private var sessionStartedAtMs = 0L
+    private var sessionClockDoubt = false
+    private lateinit var seenNotifications: SeenNotifications
+
+    private val timeChangeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (!sessionClockDoubt) DiagnosticsLog.log("ancs: ${intent.action?.substringAfterLast('.')} — restored-notification check off for this session")
+            sessionClockDoubt = true
+        }
+    }
+
     // Latest user settings; the flow below keeps it current, so changes apply live
     @Volatile private var settings = TandemSettings()
 
@@ -200,6 +213,7 @@ class AncsService : Service() {
         notificationManager = getSystemService(NotificationManager::class.java)
         vibrator = getSystemService(Vibrator::class.java)
         history = HistoryRepository(TandemDatabase.get(this).historyDao())
+        seenNotifications = SeenNotifications(java.io.File(filesDir, "seen_notifications.txt"))
         scope.launch {
             SettingsRepository(this@AncsService).settings.collect { settings = it }
         }
@@ -217,6 +231,10 @@ class AncsService : Service() {
         registerReceiver(adapterStateReceiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
         registerReceiver(keyMissingReceiver, IntentFilter(BondStateReceiver.ACTION_KEY_MISSING))
         registerReceiver(encryptionChangeReceiver, IntentFilter(BondStateReceiver.ACTION_ENCRYPTION_CHANGE))
+        registerReceiver(timeChangeReceiver, IntentFilter().apply {
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+            addAction(Intent.ACTION_TIME_CHANGED)
+        })
 
         // Register PhoneAccount for Telecom framework integration
         // This lets us show incoming calls via the system call UI
@@ -319,7 +337,10 @@ class AncsService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        listOf(connectionManager.bondStateReceiver, adapterStateReceiver, keyMissingReceiver, encryptionChangeReceiver).forEach {
+        listOf(
+            connectionManager.bondStateReceiver, adapterStateReceiver, keyMissingReceiver,
+            encryptionChangeReceiver, timeChangeReceiver
+        ).forEach {
             try {
                 unregisterReceiver(it)
             } catch (_: IllegalArgumentException) { }
@@ -647,6 +668,10 @@ class AncsService : Service() {
             return
         }
 
+        // Already posted in this session = a MODIFIED update of it: never re-classified
+        val isUpdate = idRegistry.existingId(notification.uid) != null
+        val restored = if (isUpdate) null else classifyRestored(notification)
+
         val notifId = idRegistry.idFor(notification.uid)
         val sessionId = idRegistry.sessionId
 
@@ -663,6 +688,31 @@ class AncsService : Service() {
         val senderName = if (decision.hideContent) displayAppName else realSender
         val messagePreview = if (decision.hideContent) getString(R.string.notification_hidden_text, displayAppName) else realPreview
         val notifTime = parseAncsDate(notification.date)
+
+        val entry = HistoryEntry(
+            androidId = notifId,
+            sessionId = sessionId,
+            uid = notification.uid,
+            appId = notification.appIdentifier,
+            appName = displayAppName,
+            categoryId = notification.categoryId,
+            // Hidden content is never written to disk
+            title = if (decision.hideContent) "" else realSender,
+            message = if (decision.hideContent) "" else realPreview,
+            postedAt = notifTime,
+            positiveLabel = notification.positiveActionLabel,
+            negativeLabel = notification.negativeActionLabel,
+            contentHidden = decision.hideContent
+        )
+
+        // Restored by the iPhone after a restart: no sound, vibration or pop-up. It goes to
+        // Recent only; with history off it is posted silently instead, so it's never lost.
+        val restoredSilently = restored?.verdict == RestoredNotificationRule.Verdict.RESTORED
+        if (restoredSilently && settings.historyEnabled) {
+            scope.launch(Dispatchers.IO) { history.record(entry, store = true) }
+            requestSurfaceUpdate()
+            return
+        }
 
         val builder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(iconResId)
@@ -736,7 +786,7 @@ class AncsService : Service() {
 
         // Never call setNotificationSilent() for normal notifications — it suppresses the
         // heads-up overlay on Wear OS. Only a muted app or quiet hours ask for exactly that.
-        if (decision.alert == NotificationPolicy.Alert.SILENT) builder.setSilent(true)
+        if (decision.alert == NotificationPolicy.Alert.SILENT || restoredSilently) builder.setSilent(true)
 
         // Lock screen: a public version with only the app name
         if (decision.privateOnLockScreen) {
@@ -756,23 +806,43 @@ class AncsService : Service() {
         notificationManager.notify(notifId, builder.build())
         activeNotificationIds.addLast(notifId)
         requestSurfaceUpdate()
-
-        val entry = HistoryEntry(
-            androidId = notifId,
-            sessionId = sessionId,
-            uid = notification.uid,
-            appId = notification.appIdentifier,
-            appName = displayAppName,
-            categoryId = notification.categoryId,
-            // Hidden content is never written to disk
-            title = if (decision.hideContent) "" else realSender,
-            message = if (decision.hideContent) "" else realPreview,
-            postedAt = notifTime,
-            positiveLabel = notification.positiveActionLabel,
-            negativeLabel = notification.negativeActionLabel,
-            contentHidden = decision.hideContent
-        )
         scope.launch(Dispatchers.IO) { history.record(entry, store = settings.historyEnabled) }
+    }
+
+    /**
+     * Was this notification re-sent by the iPhone after a restart (see
+     * RestoredNotificationRule)? Also remembers its fingerprint. In doubt: NEW.
+     */
+    private fun classifyRestored(notification: AncsNotification): RestoredNotificationRule.Result {
+        val now = System.currentTimeMillis()
+        val fingerprint = SeenNotifications.fingerprint(
+            notification.appIdentifier, notification.title, notification.message, notification.date
+        )
+        val seenBefore = fingerprint != null && seenNotifications.contains(fingerprint, now)
+        val zoneAutomatic = try {
+            android.provider.Settings.Global.getInt(contentResolver, android.provider.Settings.Global.AUTO_TIME_ZONE, 1) == 1
+        } catch (e: Exception) {
+            false
+        }
+        val result = RestoredNotificationRule.classify(
+            dateText = notification.date,
+            zone = java.time.ZoneId.systemDefault(),
+            sessionStartMs = sessionStartedAtMs,
+            nowMs = now,
+            seenBefore = seenBefore,
+            sessionClockDoubt = sessionClockDoubt,
+            watchZoneAutomatic = zoneAutomatic
+        )
+        if (result.clockDoubt && !sessionClockDoubt) {
+            sessionClockDoubt = true
+            DiagnosticsLog.log("ancs: clock/zone doubt (${result.reason}): restored-notification check off for this session")
+        }
+        fingerprint?.let { scope.launch(Dispatchers.IO) { seenNotifications.add(it, now) } }
+        DiagnosticsLog.log(
+            "ancs: uid=${notification.uid} ${result.verdict.name.lowercase()} (${result.reason})" +
+                if (result.verdict == RestoredNotificationRule.Verdict.RESTORED) " → silent, Recent only" else ""
+        )
+        return result
     }
 
     /** Header line in the diagnostics file, so each run (and app version) is easy to find. */
@@ -816,7 +886,10 @@ class AncsService : Service() {
     /** Unpaired: decision of 21-10, the history is cleared. */
     private fun clearHistory() {
         DiagnosticsLog.log("history: cleared (iPhone unpaired or changed)")
-        scope.launch(Dispatchers.IO) { history.clear() }
+        scope.launch(Dispatchers.IO) {
+            history.clear()
+            seenNotifications.clear()
+        }
     }
 
     /**
@@ -949,6 +1022,8 @@ class AncsService : Service() {
         if (sessionId == NotificationIdRegistry.NO_SESSION || idRegistry.isCurrent(sessionId)) return
         if (idRegistry.isSessionActive) endAncsSession()
         idRegistry.startSession(sessionId)
+        sessionStartedAtMs = System.currentTimeMillis()
+        sessionClockDoubt = false
         DiagnosticsLog.log("ancs: new session — UIDs restart, notifications from earlier sessions keep their own ids")
     }
 

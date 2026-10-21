@@ -41,3 +41,7 @@
 20. **ANCS UIDs are renumbered every session**: after a reconnect the iPhone numbers existing notifications 0..N again. Never derive Android ids from UIDs; use `NotificationIdRegistry` (fresh id per session+UID) and drop all UID state when a session ends. Actions on notifications from an ended session are local-only.
 
 21. **ANCS can take seconds to appear after a reconnect**: the first discovery on a bonded link may return only ~5 services. Wait for Service Changed / encryption or retry with backoff (`AncsDiscoveryPolicy`); never treat it as terminal for the paired iPhone.
+
+22. **iPhone restart re-sends old notifications as new**: iOS restores its notification centre seconds to minutes after the ANCS session is up, without the PreExisting flag (e.g. a reminder from 21:24 the day before at 05:17). `RestoredNotificationRule` sends them to Recent silently when their Date is ≥ 15 min before the session start (first 15 min of a session only) or their fingerprint (`SeenNotifications`, SHA-256 of app+title+text+date) was already shown. In doubt it's NEW: no/odd date, DST gap or ±2 h of a transition, future date (clock/zone mismatch), manual watch time zone, or a time/zone change during the session.
+
+23. **Coroutine `delay()` stalls in Doze**: it counts uptime, which stops in deep sleep. BLE retry timers of seconds stretched to 7–23 min overnight (docs/EMPAREJAMIENTO.md). Pending fix B3.
