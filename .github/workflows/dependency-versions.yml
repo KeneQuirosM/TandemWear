@@ -61,17 +61,31 @@ jobs:
           central org/robolectric/robolectric
           curl -fsSL https://plugins.gradle.org/m2/io/github/takahirom/roborazzi/io.github.takahirom.roborazzi.gradle.plugin/maven-metadata.xml | grep -o '<release>[^<]*' || echo "roborazzi plugin: not on plugin portal"
 
-      - name: Wear Compose compatibility (minCompileSdk / minAgpVersion per version)
+      - name: Download API sources (for writing code against the real APIs)
         run: |
-          for lib in compose-foundation compose-material3 compose-navigation; do
-            base="https://dl.google.com/android/maven2/androidx/wear/compose/$lib"
-            versions=$(curl -fsSL "$base/maven-metadata.xml" | grep -o '<version>[^<]*' | sed 's/<version>//' | grep -E '^1\.[4-7]\.[0-9]+$')
-            for v in $versions; do
-              if curl -fsSL -o /tmp/lib.aar "$base/$v/$lib-$v.aar"; then
-                meta=$(unzip -p /tmp/lib.aar META-INF/com/android/build/gradle/aar-metadata.properties 2>/dev/null | grep -E 'minCompileSdk=|minAndroidGradlePluginVersion=' | tr '\n' ' ')
-                echo "$lib $v: $meta"
-              else
-                echo "$lib $v: no aar"
-              fi
-            done
-          done
+          mkdir -p sources
+          get() {
+            local group="$1" name="$2" version="$3"
+            curl -fsSL -o "sources/$name-$version-sources.jar" \
+              "https://dl.google.com/android/maven2/$group/$name/$version/$name-$version-sources.jar" \
+              && echo "ok $name $version" || echo "MISSING $name $version"
+          }
+          get androidx/wear/compose compose-material3 1.6.2
+          get androidx/wear/compose compose-foundation 1.6.2
+          get androidx/wear/compose compose-navigation 1.6.2
+          get androidx/wear/tiles tiles 1.6.2
+          get androidx/wear/protolayout protolayout 1.4.2
+          get androidx/wear/protolayout protolayout-material3 1.4.2
+          get androidx/wear/protolayout protolayout-expression 1.4.2
+          get androidx/wear/watchface watchface-complications-data-source 1.3.0
+          get androidx/wear/watchface watchface-complications-data-source-ktx 1.3.0
+          get androidx/wear/watchface watchface-complications-data 1.3.0
+          get androidx/wear wear 1.4.0
+          get androidx/datastore datastore-preferences-core 1.2.1
+
+      - name: Upload sources
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-sources
+          path: sources/
+          retention-days: 7
