@@ -279,6 +279,7 @@ class AncsService : Service() {
                     is ConnectionState.WaitingForIphone -> getString(R.string.service_status_waiting)
                     is ConnectionState.Connecting -> getString(R.string.status_connecting_to, shown.deviceName ?: phoneName)
                     is ConnectionState.Bonding -> getString(R.string.status_pairing_with, shown.deviceName ?: phoneName)
+                    is ConnectionState.LinkedWithoutAncs -> getString(R.string.service_status_linked_no_ancs)
                     is ConnectionState.Connected -> getString(R.string.service_status_connected_to, shown.deviceName ?: phoneName)
                     is ConnectionState.Disconnected -> getString(R.string.service_status_disconnected)
                     is ConnectionState.RepairNeeded -> getString(R.string.service_status_repair)

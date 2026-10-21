@@ -136,4 +136,10 @@
         <item quantity="many">%d pendientes</item>
         <item quantity="other">%d pendientes</item>
     </plurals>
+
+    <!-- Conectado sin notificaciones (B5) -->
+    <string name="home_linked_no_ancs">Conectado sin notificaciones</string>
+    <string name="home_linked_no_ancs_body">El iPhone está conectado pero no comparte las notificaciones. Suele arreglarse solo. Si dura, revisa en el iPhone Ajustes › Bluetooth › (i) › Compartir notificaciones del sistema, o reinicia el iPhone.</string>
+    <string name="service_status_linked_no_ancs">Conectado, el iPhone no comparte notificaciones</string>
+    <string name="pair_status_linked_no_ancs">Conectado. Esperando que el iPhone comparta las notificaciones…</string>
 </resources>

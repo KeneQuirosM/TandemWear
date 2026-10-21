@@ -680,6 +680,10 @@ class BleConnectionManager(
         }
 
         serviceDiscoveryRetries++
+        // State only (B5): what the UI shows. Retries and reconnection are unchanged.
+        if (AncsDiscoveryPolicy.showLinkedWithoutAncs(elapsed) && _connectionState.value is ConnectionState.Connecting) {
+            _connectionState.value = ConnectionState.LinkedWithoutAncs(displayName(g.device))
+        }
         DiagnosticsLog.log(
             "ancs: bonded but no ANCS yet (${g.services.size} services, ${elapsed} ms after link up); " +
                 "waiting up to $waitMs ms for encryption/Service Changed (retry ${retry + 1}/${AncsDiscoveryPolicy.RETRY_DELAYS_MS.size})"

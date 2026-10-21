@@ -36,12 +36,22 @@ class HomeStatusTest {
     }
 
     @Test
+    fun `linked without ancs shows its own state with no action`() {
+        val status = map(ConnectionState.LinkedWithoutAncs("iPhone"))
+        assertEquals(HomeStatus.LinkedNoNotifications("iPhone"), status)
+        assertEquals(HomeStatus.Action.NONE, status.action)
+        assertEquals(HomeStatus.NotPaired, map(ConnectionState.LinkedWithoutAncs(null), paired = false))
+        assertEquals(HomeStatus.BluetoothOff, map(ConnectionState.LinkedWithoutAncs(null), bt = false))
+    }
+
+    @Test
     fun `without a paired phone everything but a session asks to pair`() {
         listOf(
             ConnectionState.Idle,
             ConnectionState.WaitingForIphone("Watch"),
             ConnectionState.Connecting(null),
             ConnectionState.Bonding(null),
+            ConnectionState.LinkedWithoutAncs(null),
             ConnectionState.Disconnected(),
             ConnectionState.Error("x")
         ).forEach { assertEquals(it.toString(), HomeStatus.NotPaired, map(it, paired = false)) }

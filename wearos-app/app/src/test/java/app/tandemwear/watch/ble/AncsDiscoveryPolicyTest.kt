@@ -39,4 +39,13 @@ class AncsDiscoveryPolicyTest {
         assertEquals(AncsDiscoveryPolicy.OnExhausted.RECONNECT_LATER, AncsDiscoveryPolicy.onExhausted(isPairedPhone = true))
         assertEquals(AncsDiscoveryPolicy.OnExhausted.REPORT_ERROR, AncsDiscoveryPolicy.onExhausted(isPairedPhone = false))
     }
+
+    @Test
+    fun `linked without ancs is shown only after 5 s`() {
+        // Night of 20-21 Oct: 1.2 s and 2.8 s → still "connecting"; 30 s → linked, no ANCS
+        assertEquals(false, AncsDiscoveryPolicy.showLinkedWithoutAncs(1_211))
+        assertEquals(false, AncsDiscoveryPolicy.showLinkedWithoutAncs(2_788))
+        assertEquals(true, AncsDiscoveryPolicy.showLinkedWithoutAncs(5_000))
+        assertEquals(true, AncsDiscoveryPolicy.showLinkedWithoutAncs(30_938))
+    }
 }

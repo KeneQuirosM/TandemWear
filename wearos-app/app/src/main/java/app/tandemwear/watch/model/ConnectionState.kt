@@ -6,6 +6,11 @@ sealed class ConnectionState {
     data class WaitingForIphone(val advertisedName: String?) : ConnectionState()
     data class Connecting(val deviceName: String?) : ConnectionState()
     data class Bonding(val deviceName: String?) : ConnectionState()
+    /**
+     * Bonded, encrypted link to the iPhone, but it isn't publishing ANCS (seen for hours on
+     * the night of 20-21 Oct). Display only: the BLE layer treats it exactly like Connecting.
+     */
+    data class LinkedWithoutAncs(val deviceName: String?) : ConnectionState()
     /** ANCS session active. [sessionId] changes on every new session (UIDs are per session). */
     data class Connected(val deviceName: String?, val sessionId: Long = 0L) : ConnectionState()
     data class Disconnected(val reason: String? = null) : ConnectionState()

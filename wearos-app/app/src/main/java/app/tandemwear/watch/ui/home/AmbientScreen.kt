@@ -30,6 +30,7 @@ fun AmbientScreen(status: HomeStatus, burnInProtection: Boolean, shiftStep: Int)
     val title = when (status) {
         is HomeStatus.Connected -> stringResource(R.string.home_connected_to, status.phoneName ?: defaultPhone)
         is HomeStatus.Reconnecting -> stringResource(R.string.home_reconnecting)
+        is HomeStatus.LinkedNoNotifications -> stringResource(R.string.home_linked_no_ancs)
         is HomeStatus.Disconnected -> stringResource(R.string.home_disconnected)
         HomeStatus.RepairNeeded -> stringResource(R.string.repair_title)
         HomeStatus.BluetoothOff -> stringResource(R.string.home_bluetooth_off)

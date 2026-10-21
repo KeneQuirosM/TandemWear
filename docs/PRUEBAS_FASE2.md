@@ -71,3 +71,24 @@ La primera vez con la firma fija hay que desinstalar antes (`adb uninstall app.t
 3. Fuente al máximo (Ajustes › Pantalla › Tamaño de fuente): nada se corta en Inicio, Detalle ni Ajustes. Todo se desplaza con la corona.
 4. TalkBack: cada botón dice su función. Los títulos se anuncian como encabezados. Cada tarjeta de Recientes se lee como «app, remitente: texto, hora».
 5. Idioma inglés en el reloj: todos los textos en inglés.
+
+## B1, B2 y B5 (después del análisis de la noche del 20 al 21-10)
+
+**B1, el log en archivo:**
+1. Con el APK debug instalado y el servicio corriendo:
+   ```bat
+   adb exec-out run-as app.tandemwear.watch cat files/diag/tandemwear.log
+   ```
+   Debe empezar con `=== service start: TandemWear …` y cada línea debe tener fecha completa.
+2. Abre TW Probe ANCS y toca «Exportar log». En la pantalla debe aparecer `export: N bytes → /sdcard/Download/tandemwear-log-….txt`. Después:
+   ```bat
+   adb pull /sdcard/Download/tandemwear-log-….txt
+   ```
+3. Al cortar y recuperar la conexión deben aparecer `initiator=` en la línea `gatt: connected` y `link: ended … | today …` al cerrarse.
+
+**B2, notificaciones restauradas:**
+1. Deja un recordatorio vencido en el iPhone y reinícialo. Al reconectar, el recordatorio aparece en Recientes **sin vibrar ni aviso emergente**. En el log debe verse `restored (dated N min before the session)`.
+2. Durante esos primeros minutos, mándate un WhatsApp: debe sonar y avisar como siempre (`new (recent)`).
+3. Pon la zona horaria del reloj en manual y repite el paso 1: el recordatorio debe avisar (`watch time zone is manual`).
+
+**B5, «Conectado sin notificaciones»:** si se repite lo de esa noche, Inicio, el Tile y la notificación del servicio deben mostrar «Conectado sin notificaciones» (en ámbar) en vez de «Reconectando». La reconexión se comporta igual que antes.

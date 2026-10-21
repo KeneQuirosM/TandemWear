@@ -15,6 +15,7 @@ class TileModelTest {
     fun `tone follows the connection state`() {
         assertEquals(Tone.CONNECTED, TileModel(HomeStatus.Connected("iPhone"), 0, null).tone)
         assertEquals(Tone.RECONNECTING, TileModel(HomeStatus.Reconnecting(null), 0, null).tone)
+        assertEquals(Tone.RECONNECTING, TileModel(HomeStatus.LinkedNoNotifications("iPhone"), 0, null).tone)
         assertEquals(Tone.IDLE, TileModel(HomeStatus.Disconnected(null), 0, null).tone)
         assertEquals(Tone.IDLE, TileModel(HomeStatus.NotPaired, 0, null).tone)
         assertEquals(Tone.ATTENTION, TileModel(HomeStatus.RepairNeeded, 0, null).tone)

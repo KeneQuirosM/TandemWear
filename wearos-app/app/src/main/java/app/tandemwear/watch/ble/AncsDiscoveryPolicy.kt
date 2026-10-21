@@ -21,6 +21,16 @@ object AncsDiscoveryPolicy {
 
     fun shouldRefreshCache(retry: Int): Boolean = retry >= REFRESH_CACHE_FROM_RETRY
 
+    /** After this long without ANCS on a bonded link, say so instead of "connecting". */
+    const val LINKED_WITHOUT_ANCS_AFTER_MS = 5_000L
+
+    /**
+     * Display only (B5): show "linked, no notifications" once the link has been up this long
+     * without ANCS. A normal reconnect publishes ANCS within ~2–3 s and never shows it.
+     */
+    fun showLinkedWithoutAncs(elapsedSinceLinkUpMs: Long): Boolean =
+        elapsedSinceLinkUpMs >= LINKED_WITHOUT_ANCS_AFTER_MS
+
     enum class OnExhausted {
         /** Paired iPhone: drop the link and let the normal reconnection try again later. */
         RECONNECT_LATER,

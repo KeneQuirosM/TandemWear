@@ -65,6 +65,7 @@ fun PairScreen(viewModel: MainViewModel, onDone: () -> Unit) {
                 is ConnectionState.WaitingForIphone -> stringResource(R.string.pair_status_visible)
                 is ConnectionState.Connecting -> stringResource(R.string.pair_status_connecting)
                 is ConnectionState.Bonding -> stringResource(R.string.pair_status_bonding)
+                is ConnectionState.LinkedWithoutAncs -> stringResource(R.string.pair_status_linked_no_ancs)
                 is ConnectionState.Error -> stringResource(R.string.status_error_generic) + "\n" + state.message
                 is ConnectionState.RepairNeeded -> stringResource(R.string.repair_title)
                 else -> stringResource(R.string.pair_status_starting)

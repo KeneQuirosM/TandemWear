@@ -25,7 +25,7 @@ data class TileModel(
     val tone: Tone
         get() = when (status) {
             is HomeStatus.Connected -> Tone.CONNECTED
-            is HomeStatus.Reconnecting -> Tone.RECONNECTING
+            is HomeStatus.Reconnecting, is HomeStatus.LinkedNoNotifications -> Tone.RECONNECTING
             is HomeStatus.Disconnected, HomeStatus.NotPaired -> Tone.IDLE
             HomeStatus.RepairNeeded, HomeStatus.BluetoothOff -> Tone.ATTENTION
         }

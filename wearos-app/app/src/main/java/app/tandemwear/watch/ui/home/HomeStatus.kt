@@ -17,6 +17,14 @@ sealed class HomeStatus {
         override val action = Action.NONE
     }
 
+    /**
+     * Linked to the paired iPhone, but it isn't sharing notifications (no ANCS). Usually
+     * clears by itself; the BLE layer keeps handling it as a reconnection.
+     */
+    data class LinkedNoNotifications(val phoneName: String?) : HomeStatus() {
+        override val action = Action.NONE
+    }
+
     /** Link being (re)established with the paired iPhone. */
     data class Reconnecting(val phoneName: String?) : HomeStatus() {
         override val action = Action.NONE
@@ -50,6 +58,8 @@ sealed class HomeStatus {
                 is ConnectionState.RepairNeeded -> RepairNeeded
                 is ConnectionState.Connecting -> if (hasPairedPhone) Reconnecting(state.deviceName) else NotPaired
                 is ConnectionState.Bonding -> if (hasPairedPhone) Reconnecting(state.deviceName) else NotPaired
+                is ConnectionState.LinkedWithoutAncs ->
+                    if (hasPairedPhone) LinkedNoNotifications(state.deviceName) else NotPaired
                 is ConnectionState.Error -> if (hasPairedPhone) Disconnected(state.message) else NotPaired
                 is ConnectionState.Disconnected,
                 is ConnectionState.Idle,

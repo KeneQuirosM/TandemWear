@@ -125,6 +125,11 @@ fun StatusHeader(status: HomeStatus) {
             stringResource(R.string.home_connected_to, status.phoneName ?: defaultPhone),
             stringResource(R.string.status_notifications_active)
         )
+        is HomeStatus.LinkedNoNotifications -> Triple(
+            TandemColors.stateReconnecting,
+            stringResource(R.string.home_linked_no_ancs),
+            stringResource(R.string.home_linked_no_ancs_body)
+        )
         is HomeStatus.Reconnecting -> Triple(
             TandemColors.stateReconnecting,
             stringResource(R.string.home_reconnecting),

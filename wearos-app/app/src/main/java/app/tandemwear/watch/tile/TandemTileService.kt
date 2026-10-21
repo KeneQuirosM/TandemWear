@@ -127,6 +127,7 @@ class TandemTileService : TileService() {
             when (model.status) {
                 is HomeStatus.Connected -> R.string.tile_connected
                 is HomeStatus.Reconnecting -> R.string.home_reconnecting
+                is HomeStatus.LinkedNoNotifications -> R.string.home_linked_no_ancs
                 is HomeStatus.Disconnected -> R.string.home_disconnected
                 HomeStatus.RepairNeeded -> R.string.action_pair_again
                 HomeStatus.BluetoothOff -> R.string.home_bluetooth_off
