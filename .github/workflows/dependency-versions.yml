@@ -60,3 +60,18 @@ jobs:
           central io/github/takahirom/roborazzi/roborazzi-junit-rule
           central org/robolectric/robolectric
           curl -fsSL https://plugins.gradle.org/m2/io/github/takahirom/roborazzi/io.github.takahirom.roborazzi.gradle.plugin/maven-metadata.xml | grep -o '<release>[^<]*' || echo "roborazzi plugin: not on plugin portal"
+
+      - name: Wear Compose compatibility (minCompileSdk / minAgpVersion per version)
+        run: |
+          for lib in compose-foundation compose-material3 compose-navigation; do
+            base="https://dl.google.com/android/maven2/androidx/wear/compose/$lib"
+            versions=$(curl -fsSL "$base/maven-metadata.xml" | grep -o '<version>[^<]*' | sed 's/<version>//' | grep -E '^1\.[4-7]\.[0-9]+$')
+            for v in $versions; do
+              if curl -fsSL -o /tmp/lib.aar "$base/$v/$lib-$v.aar"; then
+                meta=$(unzip -p /tmp/lib.aar META-INF/com/android/build/gradle/aar-metadata.properties 2>/dev/null | grep -E 'minCompileSdk=|minAndroidGradlePluginVersion=' | tr '\n' ' ')
+                echo "$lib $v: $meta"
+              else
+                echo "$lib $v: no aar"
+              fi
+            done
+          done
