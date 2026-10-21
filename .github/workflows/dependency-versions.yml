@@ -9,6 +9,7 @@ on:
       - claude/dazzling-heisenberg-ttxsvg
     paths:
       - .github/workflows/dependency-versions.yml
+      - .github/scripts/**
   workflow_dispatch:
 
 permissions:
@@ -17,7 +18,7 @@ permissions:
 jobs:
   versions:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Query Maven metadata
         run: |
@@ -82,6 +83,20 @@ jobs:
           get androidx/wear/watchface watchface-complications-data 1.3.0
           get androidx/wear wear 1.4.0
           get androidx/datastore datastore-preferences-core 1.2.1
+
+      - name: Print API signatures
+        run: |
+          sig() { echo "######## $1 / $2"; python3 .github/scripts/api_signatures.py "sources/$1-sources.jar" "$2"; }
+          sig compose-material3-1.6.2 '^(AppScaffold|ScreenScaffold|EdgeButton|Button|ButtonDefaults|Card|ListHeader|SwitchButton|TimePicker|AlertDialog|Confirmation|IconButton|TimeText|ScrollIndicator|SwipeToReveal|Text|Icon|MaterialTheme|ColorScheme|Typography|ProgressIndicator|CircularProgressIndicator|Placeholder)\.kt$'
+          sig compose-foundation-1.6.2 '^(TransformingLazyColumn|TransformingLazyColumnState|ScalingLazyColumn|ScalingLazyListState|SwipeToDismissBox|BasicSwipeToDismissBox)\.kt$'
+          sig compose-navigation-1.6.2 '\.kt$'
+          sig tiles-1.6.2 '^(TileService|TileUpdateRequester|EventBuilders|RequestBuilders|TileBuilders)\.java$|^TileService\.kt$'
+          sig protolayout-material3-1.4.2 '^(MaterialScope|PrimaryLayout|Texts|Text|Buttons|Button|Cards|Card|Icons|Icon|ColorScheme|Typography)\.kt$'
+          sig watchface-complications-data-source-ktx-1.3.0 '\.kt$'
+          sig watchface-complications-data-source-1.3.0 '^(ComplicationDataSourceService|ComplicationDataSourceUpdateRequester|ComplicationRequest)\.(kt|java)$'
+          sig watchface-complications-data-1.3.0 '^(Data|Text|Image)\.kt$'
+          sig wear-1.4.0 '^Ambient'
+          sig datastore-preferences-core-1.2.1 '\.kt$'
 
       - name: Upload sources
         uses: actions/upload-artifact@v4
