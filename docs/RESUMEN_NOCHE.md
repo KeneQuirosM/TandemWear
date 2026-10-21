@@ -15,8 +15,8 @@ No se tocó `BleConnectionManager`, ni el emparejamiento, ni la reconexión. Lo 
 | 2.4 | `659fe61` | ✅ | Ajustes en DataStore aplicados en vivo, `NotificationPolicy` pura, ajustes por app, tabla de apps de Latinoamérica |
 | 2.5 | `99d928a` | ✅ | No molestar con el `TimePicker` de rueda y excepción de llamadas, privacidad en la pantalla bloqueada |
 | 2.6 + 2.7 | `b13419e` | ✅ | Tile (estado, última notificación, pendientes) y complicación (anillos + número) |
-| 2.8 | `461ef1a` | RESULT_28A | Modo ambiente, ícono adaptativo de dos anillos, pasada de accesibilidad, README y documentación |
-| 2.8 capturas | RESULT_28B_HASH | RESULT_28B | Capturas con Roborazzi (artefacto `screenshots`) |
+| 2.8 | `461ef1a` | ✅ | Modo ambiente, ícono adaptativo de dos anillos, pasada de accesibilidad, README y documentación |
+| 2.8 capturas | `90ac5f9`, `a0fb2c1` → `924dbe2` | ❌❌ → ✅ | Roborazzi falló dos veces: primero por los metadatos de Kotlin 2.3 y luego por un `IllegalAccessException` de Robolectric. **Se pasó a `@Preview`**, según la regla acordada (`ui/preview/Previews.kt`) |
 
 Commits de apoyo para CI:
 - `a3a3870`: resumen de tests por suite.
@@ -24,7 +24,14 @@ Commits de apoyo para CI:
 
 ## Tests (CI, JVM)
 
-TESTS_LINE
+94 tests en 17 suites, todos en verde en la última corrida (`924dbe2`, CI #26). Cada suite:
+- **Protocolo:** `AmsProtocol` 8, `DataSourceAssembler` 12, `ControlPointWriter` 7, `NotificationSourceParser` 8, `AncsEventFilter` 3.
+- **Capa BLE y diagnóstico:** `NotificationIdRegistry` 6, `GattOperationQueue` 7, `PairingPolicy` 8, `AncsDiscoveryPolicy` 4, `DiagnosticsLog` 2.
+- **Apps y política:** `KnownApps` 3, `NotificationPolicy` 8.
+- **Datos:** `HistoryRepository` 4 (Room con Robolectric), `SettingsRepository` 4 (DataStore).
+- **UI y superficies:** `TileModel` 3, `HomeStatus` 4, `StringResources` 3.
+
+**Cómo ver las pantallas:** abre `ui/preview/Previews.kt` en Android Studio (vista *Split*). El APK está en GitHub › Actions › *Build APK* › artefacto `tandemwear-debug-apk`.
 
 ## Decisiones
 
@@ -54,5 +61,6 @@ Lista completa en `docs/PRUEBAS_FASE2.md`. Todo está **por verificar** en el re
 - `targetSdk 36`: después de tu prueba de larga duración (anotado en `FASE2_PLAN.md`).
 - Errores BLE traducidos, que requieren códigos en `BleConnectionManager` (`PENDIENTE_CAPA_BLE.md` #1).
 - Integración de AMS (`FASE3_PLAN.md`, `PENDIENTE_CAPA_BLE.md` #2).
+- Capturas automáticas en CI: reintentar Roborazzi cuando el proyecto suba a Kotlin ≥ 2.3 (decisiones #22 y #23).
 - Opcional: patrones de vibración con vista previa. No se hizo; tu decisión fue usar los canales del sistema.
 - IDs de apps de Costa Rica: leerlos en Ajustes › Apps.
