@@ -2,166 +2,46 @@ package app.tandemwear.watch.viewmodel
 
 import android.annotation.SuppressLint
 import android.app.Application
-import android.bluetooth.BluetoothManager
-import android.bluetooth.le.ScanResult
 import android.app.NotificationManager
+import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
-import android.util.Log
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
 import app.tandemwear.watch.ancs.AncsService
-import app.tandemwear.watch.ble.BleScanner
+import app.tandemwear.watch.data.PairedPhoneStore
 import app.tandemwear.watch.model.ConnectionState
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 
 @SuppressLint("MissingPermission")
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val scanner = BleScanner(application)
-
-    private val _isScanning = MutableStateFlow(false)
-    val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
+    private val pairedPhoneStore = PairedPhoneStore(application)
+    private val bluetoothManager = application.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
 
     // Observe the service's shared connection state directly
     val connectionState: StateFlow<ConnectionState> = AncsService.sharedConnectionState
 
-    private val _scanStatus = MutableStateFlow("")
-    val scanStatus: StateFlow<String> = _scanStatus.asStateFlow()
+    val isBluetoothEnabled: Boolean get() = bluetoothManager.adapter?.isEnabled == true
 
-    private var scanJob: Job? = null
+    /** Name the iPhone will list in Settings › Bluetooth. */
+    val watchName: String
+        get() = try {
+            bluetoothManager.adapter?.name
+        } catch (e: SecurityException) {
+            null
+        } ?: "Galaxy Watch"
 
-    val isBluetoothEnabled: Boolean get() = scanner.isBluetoothEnabled
+    /** Make the watch visible to the iPhone for pairing (the user taps it in iPhone Settings). */
+    fun startPairing() = sendToService(AncsService.ACTION_START_PAIRING, foreground = true)
 
-    private val discoveredAppleDevices = mutableMapOf<String, ScanResult>()
+    fun startService() = sendToService(AncsService.ACTION_START, foreground = true)
 
-    /**
-     * Scan for Apple devices for 5 seconds, then connect to the strongest signal.
-     * No device list is rendered — the scan runs silently with status updates.
-     */
-    fun scanAndConnect() {
-        if (_isScanning.value) return
-        _isScanning.value = true
-        _scanStatus.value = "Looking for TandemWear app..."
-        discoveredAppleDevices.clear()
+    fun stopService() = sendToService(AncsService.ACTION_STOP, foreground = false)
 
-        scanJob = viewModelScope.launch {
-            // Phase 1: Scan for companion app (10 seconds)
-            var found = false
-            launch {
-                delay(10_000)
-                if (_isScanning.value && !found) {
-                    _scanStatus.value = "TandemWear app not found.\nOpen it on your iPhone."
-                    stopScan()
-                }
-            }
+    fun disconnect() = sendToService(AncsService.ACTION_DISCONNECT, foreground = false)
 
-            try {
-                scanner.scanForCompanion().collect { result ->
-                    found = true
-                    val name = result.device.name ?: result.device.address
-                    Log.i("MainViewModel", "Found companion: $name rssi=${result.rssi}")
-                    _scanStatus.value = "Found iPhone! Connecting..."
-                    stopScan()
-                    connectToDevice(result.device.address)
-                    return@collect
-                }
-            } catch (e: Exception) {
-                _scanStatus.value = "Scan error: ${e.message}"
-                _isScanning.value = false
-            }
-        }
-    }
-
-    private fun connectToBestDevice() {
-        if (discoveredAppleDevices.isEmpty()) {
-            _scanStatus.value = "No Apple devices found"
-            return
-        }
-
-        // Pick the device with the strongest signal
-        val best = discoveredAppleDevices.values
-            .sortedByDescending { it.rssi }
-            .first()
-
-        val name = best.device.name ?: best.device.address
-        Log.i("MainViewModel", "Connecting to best Apple device: $name rssi=${best.rssi}")
-        _scanStatus.value = "Connecting to $name..."
-        connectToDevice(best.device.address)
-    }
-
-    fun stopScan() {
-        scanJob?.cancel()
-        scanJob = null
-        _isScanning.value = false
-    }
-
-    fun connectToDevice(address: String) {
-        stopScan()
-
-        val context = getApplication<Application>()
-        val intent = Intent(context, AncsService::class.java).apply {
-            action = AncsService.ACTION_CONNECT
-            putExtra(AncsService.EXTRA_DEVICE_ADDRESS, address)
-        }
-        context.startForegroundService(intent)
-    }
-
-    /**
-     * Connect directly to a device by its Bluetooth MAC address.
-     * Used when we know the iPhone's classic BT address from Settings.
-     */
-    fun connectByAddress(address: String) {
-        val context = getApplication<Application>()
-        val intent = Intent(context, AncsService::class.java).apply {
-            action = AncsService.ACTION_CONNECT
-            putExtra(AncsService.EXTRA_DEVICE_ADDRESS, address)
-        }
-        context.startForegroundService(intent)
-    }
-
-    fun startService() {
-        val context = getApplication<Application>()
-        val intent = Intent(context, AncsService::class.java).apply {
-            action = AncsService.ACTION_START
-        }
-        context.startForegroundService(intent)
-    }
-
-    fun stopService() {
-        val context = getApplication<Application>()
-        val intent = Intent(context, AncsService::class.java).apply {
-            action = AncsService.ACTION_STOP
-        }
-        context.startService(intent)
-    }
-
-    fun disconnect() {
-        val context = getApplication<Application>()
-        val intent = Intent(context, AncsService::class.java).apply {
-            action = AncsService.ACTION_DISCONNECT
-        }
-        context.startService(intent)
-    }
-
-    fun hasBondedIPhone(): Boolean {
-        val context = getApplication<Application>()
-        val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        val adapter = manager.adapter ?: return false
-        return adapter.bondedDevices.any { device ->
-            val name = device.name ?: ""
-            name.contains("iPhone", ignoreCase = true) ||
-                name.contains("AncsBrid", ignoreCase = true) ||
-                name.contains("AncsBridge", ignoreCase = true) ||
-                name.contains("WearBridge", ignoreCase = true) ||
-                name.contains("WearBrid", ignoreCase = true)
-        }
-    }
+    /** True while an iPhone is paired and its bond still exists on the watch. */
+    fun hasPairedIPhone(): Boolean = pairedPhoneStore.bondedPhone() != null
 
     /**
      * Clear all TandemWear notifications from the watch.
@@ -177,14 +57,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         // Also tell the service to reset its tracking
-        val intent = Intent(context, AncsService::class.java).apply {
-            action = AncsService.ACTION_CLEAR_ALL
-        }
-        context.startService(intent)
+        sendToService(AncsService.ACTION_CLEAR_ALL, foreground = false)
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        stopScan()
+    private fun sendToService(action: String, foreground: Boolean) {
+        val context = getApplication<Application>()
+        val intent = Intent(context, AncsService::class.java).setAction(action)
+        if (foreground) context.startForegroundService(intent) else context.startService(intent)
     }
 }

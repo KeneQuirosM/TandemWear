@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Debug-only additions: BLE advertising probe (see docs/EXPERIMENTO_ANUNCIO_BLE.md) -->
+<!-- Debug-only additions: BLE probes (docs/EXPERIMENTO_ANUNCIO_BLE.md, docs/EMPAREJAMIENTO.md) -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
 
     <application>
         <activity
@@ -10,6 +8,16 @@
             android:exported="true"
             android:label="TW Probe"
             android:taskAffinity="app.tandemwear.watch.probe">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".debug.AncsProbeActivity"
+            android:exported="true"
+            android:label="TW Probe ANCS"
+            android:taskAffinity="app.tandemwear.watch.ancsprobe">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

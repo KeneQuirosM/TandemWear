@@ -19,6 +19,13 @@ class BondStateReceiver(
         private const val TAG = "BondStateReceiver"
 
         val intentFilter = IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+
+        /**
+         * Android 16 (API 36) BluetoothDevice.ACTION_KEY_MISSING: a bonded device could not be
+         * authenticated on reconnection; the system kept the bond and disconnected. Literal
+         * because we compile against SDK 35. Delivery depends on the OEM.
+         */
+        const val ACTION_KEY_MISSING = "android.bluetooth.device.action.KEY_MISSING"
     }
 
     override fun onReceive(context: Context, intent: Intent) {

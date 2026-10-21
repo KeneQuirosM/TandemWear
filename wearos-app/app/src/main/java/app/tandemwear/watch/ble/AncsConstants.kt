@@ -11,9 +11,8 @@ object AncsConstants {
     // ANCS Service UUID
     val ANCS_SERVICE_UUID: UUID = UUID.fromString("7905F431-B5CE-4E99-A40F-4B1E122D00D0")
 
-    // Legacy WearBridge iOS companion service UUID — only used by the old scanner
-    // until advertising-based pairing replaces it. TODO: remove with BleScanner.scanForCompanion
-    val COMPANION_SERVICE_UUID: UUID = UUID.fromString("A0E3D5B1-4C6F-4E8A-9B2D-7F1E3A5C8D0B")
+    // Apple Media Service (AMS) — UUID confirmed in Apple's AMS specification (used in Phase 3)
+    val AMS_SERVICE_UUID: UUID = UUID.fromString("89D3502B-0F36-433A-8EF4-C502AD55F8DC")
 
     // ANCS Characteristic UUIDs
     val NOTIFICATION_SOURCE_UUID: UUID = UUID.fromString("9FBF120D-6301-42D9-8C58-25E699A21DBD")

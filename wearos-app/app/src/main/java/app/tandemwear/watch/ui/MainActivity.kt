@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity() {
     private fun requestPermissionsIfNeeded() {
         val permissions = arrayOf(
             Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.BLUETOOTH_SCAN,
+            Manifest.permission.BLUETOOTH_ADVERTISE,
             Manifest.permission.POST_NOTIFICATIONS,
         )
 

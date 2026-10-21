@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -183,9 +184,36 @@ fun HomeScreen(viewModel: MainViewModel, onPairNewDevice: () -> Unit) {
             }
 
             else -> {
-                // Idle / Disconnected / Error — show reconnect or pair
+                // Idle / Disconnected / Error / RepairNeeded — show reconnect or pair
+                val repairNeeded = connectionState is ConnectionState.RepairNeeded
 
-                if (viewModel.hasBondedIPhone()) {
+                if (repairNeeded) {
+                    item {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.PhoneIphone,
+                                contentDescription = null,
+                                tint = Color(0xFFF6C98A),
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Your iPhone forgot this watch",
+                                textAlign = TextAlign.Center,
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                "Pair again. If the watch still lists the iPhone in its Bluetooth settings, unpair it there first.",
+                                textAlign = TextAlign.Center,
+                                fontSize = 11.sp,
+                                color = Color(0xFF9CA3AF)
+                            )
+                        }
+                    }
+                } else if (viewModel.hasPairedIPhone()) {
                     // Has a bonded device — show reconnecting state
                     item {
                         Column(
@@ -254,7 +282,7 @@ fun HomeScreen(viewModel: MainViewModel, onPairNewDevice: () -> Unit) {
                     Button(
                         onClick = onPairNewDevice,
                         modifier = Modifier.fillMaxWidth(0.9f),
-                        colors = if (viewModel.hasBondedIPhone())
+                        colors = if (viewModel.hasPairedIPhone() && !repairNeeded)
                             ButtonDefaults.buttonColors(containerColor = Color(0xFF374151))
                         else ButtonDefaults.buttonColors()
                     ) {
@@ -278,10 +306,11 @@ fun HomeScreen(viewModel: MainViewModel, onPairNewDevice: () -> Unit) {
 @Composable
 fun PairNewDeviceScreen(viewModel: MainViewModel, onDismiss: () -> Unit) {
     val connectionState by viewModel.connectionState.collectAsState()
-    val isScanning by viewModel.isScanning.collectAsState()
-    val scanStatus by viewModel.scanStatus.collectAsState()
 
-    // Auto-dismiss when connected
+    // Opening this screen makes the watch visible to the iPhone
+    LaunchedEffect(Unit) { viewModel.startPairing() }
+
+    // Auto-dismiss when the ANCS session is up
     if (connectionState is ConnectionState.Connected) {
         onDismiss()
         return
@@ -293,18 +322,38 @@ fun PairNewDeviceScreen(viewModel: MainViewModel, onDismiss: () -> Unit) {
     ) {
         item {
             ListHeader {
-                Text("Pair New Device")
+                Text("Pair iPhone")
             }
         }
 
-        // Instructions
         item {
+            Text(
+                "On your iPhone open Settings › Bluetooth and tap \"${viewModel.watchName}\".",
+                textAlign = TextAlign.Center,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+        }
+
+        item {
+            val (showSpinner, status) = when (val state = connectionState) {
+                is ConnectionState.WaitingForIphone -> true to "Visible to the iPhone…"
+                is ConnectionState.Connecting -> true to "iPhone found, connecting…"
+                is ConnectionState.Bonding -> true to "Accept the pairing request on the iPhone (and on the watch if asked)"
+                is ConnectionState.Error -> false to state.message
+                is ConnectionState.RepairNeeded -> false to state.reason
+                else -> true to "Starting…"
+            }
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
+                if (showSpinner) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
                 Text(
-                    "Make sure the TandemWear companion app is open on your iPhone",
+                    status,
                     textAlign = TextAlign.Center,
                     fontSize = 12.sp,
                     color = Color(0xFF9CA3AF)
@@ -312,80 +361,23 @@ fun PairNewDeviceScreen(viewModel: MainViewModel, onDismiss: () -> Unit) {
             }
         }
 
-        // Scanning state
-        when (connectionState) {
-            is ConnectionState.Connecting -> {
-                item {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "Connecting to ${(connectionState as ConnectionState.Connecting).deviceName ?: "iPhone"}…",
-                            textAlign = TextAlign.Center,
-                            fontSize = 13.sp
-                        )
-                    }
-                }
-            }
+        item {
+            Text(
+                "Then, in Settings › Bluetooth › (i) next to the watch, turn on Share System Notifications.",
+                textAlign = TextAlign.Center,
+                fontSize = 11.sp,
+                color = Color(0xFF9CA3AF),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+        }
 
-            is ConnectionState.Bonding -> {
-                item {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "Accept the pairing dialog on your iPhone",
-                            textAlign = TextAlign.Center,
-                            fontSize = 13.sp
-                        )
-                    }
-                }
-            }
-
-            else -> {
-                // Scan button
-                item {
-                    Button(
-                        onClick = {
-                            if (isScanning) viewModel.stopScan()
-                            else viewModel.scanAndConnect()
-                        },
-                        modifier = Modifier.fillMaxWidth(0.9f)
-                    ) {
-                        Text(
-                            if (isScanning) "Stop Scanning" else "Start Scanning",
-                            fontSize = 12.sp
-                        )
-                    }
-                }
-
-                // Scan status
-                if (isScanning || scanStatus.isNotEmpty()) {
-                    item {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(8.dp)
-                        ) {
-                            if (isScanning) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                                Spacer(modifier = Modifier.height(4.dp))
-                            }
-                            if (scanStatus.isNotEmpty()) {
-                                Text(
-                                    scanStatus,
-                                    textAlign = TextAlign.Center,
-                                    fontSize = 11.sp,
-                                    color = Color(0xFF9CA3AF)
-                                )
-                            }
-                        }
-                    }
+        if (connectionState is ConnectionState.Error || connectionState is ConnectionState.RepairNeeded) {
+            item {
+                Button(
+                    onClick = { viewModel.startPairing() },
+                    modifier = Modifier.fillMaxWidth(0.9f)
+                ) {
+                    Text("Try again", fontSize = 12.sp)
                 }
             }
         }
@@ -395,10 +387,7 @@ fun PairNewDeviceScreen(viewModel: MainViewModel, onDismiss: () -> Unit) {
         // Back button
         item {
             Button(
-                onClick = {
-                    viewModel.stopScan()
-                    onDismiss()
-                },
+                onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth(0.9f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF374151)

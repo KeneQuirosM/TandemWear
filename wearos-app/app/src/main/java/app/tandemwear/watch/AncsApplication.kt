@@ -4,12 +4,16 @@ import android.app.Application
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.pm.ApplicationInfo
+import app.tandemwear.watch.diag.DiagnosticsLog
 import app.tandemwear.watch.ble.AncsConstants
 
 class AncsApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Notification text may appear in diagnostics only in debuggable builds
+        DiagnosticsLog.allowContent = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
         createNotificationChannels()
     }
 

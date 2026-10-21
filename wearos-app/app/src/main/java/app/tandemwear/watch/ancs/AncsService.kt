@@ -5,7 +5,11 @@ import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
 import android.content.Intent
 import android.os.IBinder
 import android.os.Vibrator
@@ -15,7 +19,11 @@ import app.tandemwear.watch.AncsApplication
 import app.tandemwear.watch.R
 import app.tandemwear.watch.ble.AncsConstants
 import app.tandemwear.watch.ble.BleConnectionManager
-import app.tandemwear.watch.ble.BleScanner
+import app.tandemwear.watch.ble.InboundLinkMonitor
+import app.tandemwear.watch.ble.PairingPolicy
+import app.tandemwear.watch.ble.WatchAdvertiser
+import app.tandemwear.watch.data.PairedPhoneStore
+import app.tandemwear.watch.diag.DiagnosticsLog
 import app.tandemwear.watch.ble.BondStateReceiver
 import app.tandemwear.watch.model.AncsEvent
 import app.tandemwear.watch.model.AncsNotification
@@ -28,6 +36,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,10 +46,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Foreground service that manages the BLE connection to iPhone and ANCS notification pipeline.
+ * Foreground service that manages the BLE link to the iPhone and the ANCS pipeline.
  *
- * Pipeline: BLE scan → connect → bond → subscribe → receive NS events →
- *           fetch attributes via CP → parse DS response → post Android notification
+ * Link layer: the watch advertises with ANCS service solicitation ([WatchAdvertiser]); the
+ * user pairs from iPhone › Settings › Bluetooth; the iPhone connects to the watch
+ * ([InboundLinkMonitor]) and [BleConnectionManager] runs ANCS as GATT client over that
+ * link. Once bonded, reconnection uses both the iPhone reconnecting to the advertising
+ * watch and a background autoConnect request to the bonded identity address.
+ *
+ * Pipeline: NS events → fetch attributes via CP → parse DS response → post Android notification
  */
 @SuppressLint("MissingPermission")
 class AncsService : Service() {
@@ -52,17 +66,18 @@ class AncsService : Service() {
 
         const val ACTION_START = "app.tandemwear.watch.START"
         const val ACTION_STOP = "app.tandemwear.watch.STOP"
-        const val ACTION_CONNECT = "app.tandemwear.watch.CONNECT"
+        const val ACTION_START_PAIRING = "app.tandemwear.watch.START_PAIRING"
         const val ACTION_DISCONNECT = "app.tandemwear.watch.DISCONNECT"
         const val ACTION_RECONNECT = "app.tandemwear.watch.RECONNECT"
         const val ACTION_PERFORM_NOTIFICATION_ACTION = "app.tandemwear.watch.PERFORM_ACTION"
         const val ACTION_CLEAR_ALL = "app.tandemwear.watch.CLEAR_ALL"
-        const val EXTRA_DEVICE_ADDRESS = "device_address"
         const val EXTRA_ACTION_ID = "action_id"
         const val NOTIFICATION_ID_CALL = 999
         private const val MAX_ACTIVE_NOTIFICATIONS = 20 // Android limit is 25; keep headroom
         // Max wait for a full Data Source response before moving to the next request
         private const val ATTRIBUTE_RESPONSE_TIMEOUT_MS = 3_000L
+        // How long fast "pairing" advertising lasts before falling back
+        private const val PAIRING_WINDOW_MS = 3 * 60_000L
 
         /** Shared connection state observable by the ViewModel */
         private val _sharedConnectionState = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
@@ -71,7 +86,9 @@ class AncsService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private lateinit var connectionManager: BleConnectionManager
-    private lateinit var scanner: BleScanner
+    private lateinit var advertiser: WatchAdvertiser
+    private lateinit var inboundMonitor: InboundLinkMonitor
+    private lateinit var pairedPhoneStore: PairedPhoneStore
     private lateinit var notificationManager: NotificationManager
     private lateinit var vibrator: Vibrator
 
@@ -81,13 +98,18 @@ class AncsService : Service() {
     // Track active notification IDs in posting order (oldest first) for auto-cleanup
     private val activeNotificationIds = ArrayDeque<Int>()
 
-    // Vibration cooldown — don't vibrate more than once every 3 seconds
-
     // Reconnection grace period — suppress vibration for notifications arriving
     // in the first 60 seconds after subscribing (they're backlog, not truly new)
     private var subscriptionTime = 0L
     private var activeCallUid: Long = -1
     private val reconnectionGracePeriodMs = 60_000L
+
+    // Pairing window: fast advertising, and unbonded iPhones may attach
+    private var pairingWindowJob: Job? = null
+    private val pairingWindowOpen: Boolean get() = pairingWindowJob?.isActive == true
+
+    // Diagnostics: log the first real (non-backlog) notification of each service run
+    private var firstNotificationLogged = false
 
     // Serial queue for Control Point requests
     private val attributeRequestQueue = Channel<AttributeRequest>(Channel.BUFFERED)
@@ -101,15 +123,53 @@ class AncsService : Service() {
         val requestedAttributes: List<Int>
     )
 
+    private val adapterStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
+                BluetoothAdapter.STATE_ON -> {
+                    DiagnosticsLog.log("bluetooth: ON")
+                    startLinkLayer()
+                }
+                BluetoothAdapter.STATE_TURNING_OFF -> {
+                    DiagnosticsLog.log("bluetooth: turning OFF")
+                    advertiser.stop()
+                    inboundMonitor.close()
+                }
+            }
+        }
+    }
+
+    private val keyMissingReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java) ?: return
+            connectionManager.onKeyMissing(device.address)
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
-        connectionManager = BleConnectionManager(this)
-        scanner = BleScanner(this)
+        pairedPhoneStore = PairedPhoneStore(this)
+        connectionManager = BleConnectionManager(this) { pairedPhoneStore.bondedAddresses() }
+        advertiser = WatchAdvertiser(this)
+        inboundMonitor = InboundLinkMonitor(
+            this,
+            onLinkUp = { device -> scope.launch { onInboundLink(device) } },
+            onLinkDown = { _, _ -> }
+        )
         notificationManager = getSystemService(NotificationManager::class.java)
         vibrator = getSystemService(Vibrator::class.java)
 
-        // Register bond state receiver
+        connectionManager.onPhoneBonded = { identity, name ->
+            scope.launch {
+                pairedPhoneStore.save(identity, name)
+                DiagnosticsLog.log("pairing: saved iPhone $identity")
+                endPairingWindow()
+            }
+        }
+
         registerReceiver(connectionManager.bondStateReceiver, BondStateReceiver.intentFilter)
+        registerReceiver(adapterStateReceiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
+        registerReceiver(keyMissingReceiver, IntentFilter(BondStateReceiver.ACTION_KEY_MISSING))
 
         // Register PhoneAccount for Telecom framework integration
         // This lets us show incoming calls via the system call UI
@@ -131,23 +191,29 @@ class AncsService : Service() {
             }
         }
 
-        // Update service notification and shared state based on connection state
+        // Update service notification, shared state and advertising based on connection state
         scope.launch {
             connectionManager.connectionState.collectLatest { state ->
-                // Publish to shared flow so ViewModel can observe
-                _sharedConnectionState.value = state
+                val shown = if (state is ConnectionState.Idle && pairingWindowOpen) {
+                    ConnectionState.WaitingForIphone(advertiser.advertisedName)
+                } else {
+                    state
+                }
+                _sharedConnectionState.value = shown
+                updateAdvertising(state)
 
-                val text = when (state) {
+                val text = when (shown) {
                     is ConnectionState.Idle -> "Idle"
-                    is ConnectionState.Scanning -> "Scanning..."
-                    is ConnectionState.Connecting -> "Connecting to ${state.deviceName ?: "iPhone"}..."
-                    is ConnectionState.Bonding -> "Pairing with ${state.deviceName ?: "iPhone"}..."
+                    is ConnectionState.WaitingForIphone -> "Waiting for the iPhone to pair..."
+                    is ConnectionState.Connecting -> "Connecting to ${shown.deviceName ?: "iPhone"}..."
+                    is ConnectionState.Bonding -> "Pairing with ${shown.deviceName ?: "iPhone"}..."
                     is ConnectionState.Connected -> {
                         subscriptionTime = System.currentTimeMillis()
-                        "Connected to ${state.deviceName ?: "iPhone"}"
+                        "Connected to ${shown.deviceName ?: "iPhone"}"
                     }
                     is ConnectionState.Disconnected -> "Disconnected"
-                    is ConnectionState.Error -> "Error: ${state.message}"
+                    is ConnectionState.RepairNeeded -> "Pair the iPhone again"
+                    is ConnectionState.Error -> "Error: ${shown.message}"
                 }
                 notificationManager.notify(SERVICE_NOTIFICATION_ID, buildServiceNotification(text))
             }
@@ -159,25 +225,12 @@ class AncsService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_START, null -> {
-                // Try to reconnect to bonded iPhone
-                tryReconnectBonded()
-            }
-            ACTION_CONNECT -> {
-                val address = intent.getStringExtra(EXTRA_DEVICE_ADDRESS)
-                if (address != null) {
-                    val device = scanner.let {
-                        val manager = getSystemService(BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
-                        manager.adapter.getRemoteDevice(address)
-                    }
-                    connectionManager.connect(device)
-                }
-            }
+            ACTION_START, ACTION_RECONNECT, null -> startLinkLayer()
+            ACTION_START_PAIRING -> startPairingWindow()
             ACTION_DISCONNECT -> {
+                endPairingWindow()
+                advertiser.stop()
                 connectionManager.disconnect()
-            }
-            ACTION_RECONNECT -> {
-                tryReconnectBonded()
             }
             ACTION_PERFORM_NOTIFICATION_ACTION -> {
                 val uid = intent.getLongExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_UID, -1)
@@ -195,6 +248,9 @@ class AncsService : Service() {
                 notificationManager.cancel(NOTIFICATION_ID_CALL)
             }
             ACTION_STOP -> {
+                endPairingWindow()
+                advertiser.stop()
+                inboundMonitor.close()
                 connectionManager.disconnect()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -207,22 +263,88 @@ class AncsService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        try {
-            unregisterReceiver(connectionManager.bondStateReceiver)
-        } catch (_: IllegalArgumentException) { }
+        listOf(connectionManager.bondStateReceiver, adapterStateReceiver, keyMissingReceiver).forEach {
+            try {
+                unregisterReceiver(it)
+            } catch (_: IllegalArgumentException) { }
+        }
+        advertiser.stop()
+        inboundMonitor.close()
         connectionManager.destroy()
         attributeRequestQueue.close()
         scope.cancel()
     }
 
-    private fun tryReconnectBonded() {
-        val device = connectionManager.getBondedIPhone()
-        if (device != null) {
-            Log.i(TAG, "Found bonded device: ${device.name ?: device.address}")
-            connectionManager.reconnect(device)
-        } else {
-            Log.i(TAG, "No bonded iPhone found")
+    /** Listen for the iPhone and, if one is paired, keep a background reconnection going. */
+    private fun startLinkLayer() {
+        inboundMonitor.open()
+        val phone = pairedPhoneStore.bondedPhone()
+        if (phone == null) {
+            if (pairedPhoneStore.pairedAddress != null) {
+                DiagnosticsLog.log("pairing: stored iPhone is no longer bonded — pairing needed")
+                pairedPhoneStore.clear()
+            }
+            if (!pairingWindowOpen) DiagnosticsLog.log("pairing: no paired iPhone; waiting for the user to pair")
+            return
         }
+        DiagnosticsLog.log("pairing: paired iPhone ${phone.address}, reconnecting")
+        updateAdvertising(connectionManager.connectionState.value)
+        connectionManager.reconnect(phone)
+    }
+
+    private fun startPairingWindow() {
+        // Drop any current/background connection: the user is pairing (again)
+        connectionManager.disconnect()
+        pairedPhoneStore.clear()
+        inboundMonitor.open()
+        pairingWindowJob?.cancel()
+        pairingWindowJob = scope.launch {
+            delay(PAIRING_WINDOW_MS)
+            DiagnosticsLog.log("pairing: window closed without a paired iPhone")
+            pairingWindowJob = null
+            updateAdvertising(connectionManager.connectionState.value)
+            if (connectionManager.connectionState.value is ConnectionState.Idle) {
+                _sharedConnectionState.value = ConnectionState.Error("The iPhone didn't connect. Try again.")
+            }
+        }
+        DiagnosticsLog.log("pairing: window open (${PAIRING_WINDOW_MS / 1000} s)")
+        _sharedConnectionState.value = ConnectionState.WaitingForIphone(advertiser.advertisedName)
+        advertiser.start(WatchAdvertiser.Mode.PAIRING)
+    }
+
+    private fun endPairingWindow() {
+        pairingWindowJob?.cancel()
+        pairingWindowJob = null
+    }
+
+    /**
+     * Advertise only while it helps: fast during pairing, slow while a paired iPhone is
+     * disconnected, off while connected (saves battery) or when pairing must be redone.
+     */
+    private fun updateAdvertising(state: ConnectionState) {
+        when {
+            state is ConnectionState.Connected || state is ConnectionState.RepairNeeded -> advertiser.stop()
+            pairingWindowOpen -> advertiser.start(WatchAdvertiser.Mode.PAIRING)
+            pairedPhoneStore.pairedAddress != null &&
+                (state is ConnectionState.Disconnected || state is ConnectionState.Error || state is ConnectionState.Idle) ->
+                advertiser.start(WatchAdvertiser.Mode.RECONNECT)
+            state is ConnectionState.Idle -> advertiser.stop()
+        }
+    }
+
+    private fun onInboundLink(device: BluetoothDevice) {
+        val decision = PairingPolicy.onInboundLink(
+            address = device.address,
+            isBonded = device.bondState == BluetoothDevice.BOND_BONDED,
+            pairedAddress = pairedPhoneStore.pairedAddress,
+            pairingWindowOpen = pairingWindowOpen
+        )
+        DiagnosticsLog.log("inbound: ${device.address} → $decision")
+        if (decision == PairingPolicy.InboundDecision.ATTACH) {
+            connectionManager.attachInbound(device)
+        }
+        // PROBE: a bonded device that doesn't match. The background autoConnect request to
+        // the paired identity address picks up the iPhone's link by itself, so don't replace it.
     }
 
     private fun handleNotificationSourceEvent(data: ByteArray) {
@@ -241,11 +363,12 @@ class AncsService : Service() {
                     Log.d(TAG, "Skipping pre-existing NS event uid=${event.notificationUid}")
                     return
                 }
+                DiagnosticsLog.log("ancs: NS added/modified uid=${event.notificationUid} cat=${event.categoryId}")
 
                 // Also skip during grace period (non-flagged backlog)
                 val now = System.currentTimeMillis()
                 if ((now - subscriptionTime) < reconnectionGracePeriodMs && !event.isIncomingCall) {
-                    Log.d(TAG, "Skipping NS event during grace period uid=${event.notificationUid}")
+                    DiagnosticsLog.log("ancs: skipped uid=${event.notificationUid} (first ${reconnectionGracePeriodMs / 1000} s after connecting)")
                     return
                 }
 
@@ -325,6 +448,14 @@ class AncsService : Service() {
         if (notification != null) {
             Log.i(TAG, "Notification complete: uid=${notification.uid}")
             pendingAttributeResponse?.complete(Unit)
+            if (!firstNotificationLogged) {
+                firstNotificationLogged = true
+                DiagnosticsLog.log(
+                    "FIRST NOTIFICATION RECEIVED: " + DiagnosticsLog.notificationPreview(
+                        notification.appIdentifier, notification.title, notification.message
+                    )
+                )
+            }
             scope.launch {
                 postNotification(notification)
             }
