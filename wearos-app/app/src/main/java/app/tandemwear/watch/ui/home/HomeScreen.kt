@@ -73,14 +73,14 @@ fun HomeScreen(
 fun HomeContent(
     status: HomeStatus,
     recent: List<HistoryEntry>,
-    music: MusicSession = MusicSession.NONE,
-    onOpenPlayer: () -> Unit = {},
     onOpenBluetooth: () -> Unit,
     onReconnect: () -> Unit,
     onPair: () -> Unit,
     onAbout: () -> Unit,
     onSettings: () -> Unit,
-    onOpenNotification: (Long) -> Unit
+    onOpenNotification: (Long) -> Unit,
+    music: MusicSession = MusicSession.NONE,
+    onOpenPlayer: () -> Unit = {}
 ) {
     TandemList {
         item { StatusHeader(status) }
