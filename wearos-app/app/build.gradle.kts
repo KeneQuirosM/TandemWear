@@ -17,6 +17,18 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        // Fixed, public debug key (password "android") so every debug build — CI or local —
+        // has the same signature and installs over the previous one with `adb install -r`.
+        // Debug only: never use it for a release build.
+        getByName("debug") {
+            storeFile = rootProject.file("keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
