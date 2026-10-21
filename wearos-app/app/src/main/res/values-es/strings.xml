@@ -113,4 +113,15 @@
     <string name="app_mute_desc">Sin sonido, vibración ni aviso emergente</string>
     <string name="app_hide">Ocultar el texto</string>
     <string name="app_hide_desc">Solo se muestra y guarda el nombre de la app</string>
+
+    <!-- No molestar y privacidad (2.5) -->
+    <string name="quiet_scheduled">Programado</string>
+    <string name="quiet_start">Empieza</string>
+    <string name="quiet_end">Termina</string>
+    <string name="quiet_allow_calls">Permitir llamadas</string>
+    <string name="quiet_allow_calls_desc">Las llamadas suenan igual en este horario</string>
+    <string name="quiet_explanation">En este horario las notificaciones llegan en silencio, sin avisos emergentes. Siguen apareciendo en Recientes.</string>
+    <string name="privacy_lock_screen">Ocultar con pantalla bloqueada</string>
+    <string name="privacy_lock_screen_desc">Solo el nombre de la app mientras el reloj está bloqueado</string>
+    <string name="privacy_per_app_hint">Para ocultar el texto de una app en todas partes, abre Ajustes › Apps y elige la app.</string>
 </resources>

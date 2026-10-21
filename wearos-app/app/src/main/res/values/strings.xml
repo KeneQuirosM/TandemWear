@@ -119,6 +119,17 @@
     <string name="app_hide">Hide message text</string>
     <string name="app_hide_desc">Only the app name is shown and stored</string>
 
+    <!-- Do not disturb and privacy (2.5) -->
+    <string name="quiet_scheduled">Scheduled</string>
+    <string name="quiet_start">Starts</string>
+    <string name="quiet_end">Ends</string>
+    <string name="quiet_allow_calls">Allow calls</string>
+    <string name="quiet_allow_calls_desc">Calls still ring during this time</string>
+    <string name="quiet_explanation">During this time notifications arrive silently, without pop-ups. They still appear in Recent.</string>
+    <string name="privacy_lock_screen">Hide on lock screen</string>
+    <string name="privacy_lock_screen_desc">Only the app name while the watch is locked</string>
+    <string name="privacy_per_app_hint">To hide the text of one app everywhere, open Settings › Apps and choose the app.</string>
+
     <!-- License texts stay in English (legal text) -->
     <string name="license_mit_body" translatable="false">MIT License. Copyright (c) 2026 Karthik Rajendran (WearBridge, original work); Copyright (c) 2026 TandemWear contributors (modifications).\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</string>
     <string name="license_apache_body" translatable="false">Licensed under the Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0). Distributed on an \"AS IS\" basis, without warranties or conditions of any kind.</string>

@@ -17,6 +17,10 @@ import app.tandemwear.watch.ui.pairing.PairScreen
 import app.tandemwear.watch.ui.recent.NotificationDetailScreen
 import app.tandemwear.watch.ui.settings.AppSettingsScreen
 import app.tandemwear.watch.ui.settings.AppsScreen
+import app.tandemwear.watch.ui.settings.PrivacyScreen
+import app.tandemwear.watch.ui.settings.QuietEdge
+import app.tandemwear.watch.ui.settings.QuietHoursScreen
+import app.tandemwear.watch.ui.settings.QuietTimePickerScreen
 import app.tandemwear.watch.ui.settings.SettingsScreen
 import app.tandemwear.watch.viewmodel.MainViewModel
 import app.tandemwear.watch.viewmodel.SettingsViewModel
@@ -33,6 +37,10 @@ object Routes {
     const val APPS = "apps"
     const val APP = "app/{appId}"
     fun app(appId: String) = "app/" + Uri.encode(appId)
+    const val QUIET = "quiet"
+    const val QUIET_TIME = "quiet/{edge}"
+    fun quietTime(edge: QuietEdge) = "quiet/" + edge.name
+    const val PRIVACY = "privacy"
 }
 
 /**
@@ -71,12 +79,21 @@ fun TandemNavHost(viewModel: MainViewModel) {
                     viewModel = settingsViewModel,
                     connected = status is HomeStatus.Connected,
                     onApps = { navController.navigate(Routes.APPS) },
-                    onQuietHours = null,
-                    onPrivacy = null,
+                    onQuietHours = { navController.navigate(Routes.QUIET) },
+                    onPrivacy = { navController.navigate(Routes.PRIVACY) },
                     onClearNotifications = { viewModel.clearAllNotifications() },
                     onDisconnect = { viewModel.disconnect() }
                 )
             }
+            composable(Routes.QUIET) {
+                QuietHoursScreen(settingsViewModel, onEdit = { navController.navigate(Routes.quietTime(it)) })
+            }
+            composable(Routes.QUIET_TIME) { backStackEntry ->
+                val edge = QuietEdge.entries.firstOrNull { it.name == backStackEntry.arguments?.getString("edge") }
+                    ?: QuietEdge.START
+                QuietTimePickerScreen(settingsViewModel, edge, onDone = { navController.popBackStack() })
+            }
+            composable(Routes.PRIVACY) { PrivacyScreen(settingsViewModel) }
             composable(Routes.APPS) {
                 AppsScreen(settingsViewModel, onApp = { navController.navigate(Routes.app(it)) })
             }
