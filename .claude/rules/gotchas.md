@@ -4,9 +4,9 @@
 
 2. **Notification channel caching**: Android permanently caches channel settings. `deleteNotificationChannel()` + recreate with same ID does NOT reset vibration/importance. Must use new channel IDs (versioned).
 
-3. **getBondedIPhone() device name**: The bonded iPhone may appear as "AncsBrid" (truncated) instead of "iPhone". Match multiple name patterns.
+3. **Don't find the iPhone by name** (removed): users rename iPhones and the BLE name can be truncated. Use the bonded identity address in `PairedPhoneStore`.
 
-4. **iOS entitlements**: `com.apple.developer.bluetooth.peripheral` requires a paid Apple Developer account with proper provisioning. Can be removed — ANCS works without the companion app.
+4. **An iPhone does not advertise ANCS**: the watch must advertise (ANCS service solicitation) and the iPhone connects from Settings › Bluetooth. Scanning for the iPhone only worked with the removed iOS companion app.
 
 5. **Wear OS full-screen intent**: `setFullScreenIntent()` alone doesn't reliably launch activities on Wear OS. Also call `startActivity()` directly from the service.
 
@@ -31,3 +31,7 @@
 15. **Multi-watch ANCS prioritization**: When multiple watches are bonded to the same iPhone, ANCS uses last-in-first-get — the watch that subscribed to Notification Source most recently receives events. Only one watch active at a time.
 
 16. **ANCS doesn't send REMOVE when call is answered**: When an incoming call is answered on iPhone, ANCS sends a MODIFIED event (EventID=1), not REMOVED. REMOVED only comes when the call fully ends. The call overlay must handle MODIFIED to transition to "Active on iPhone" state, otherwise it stays showing "Incoming Call" for the entire call duration.
+
+17. **ANCS is visible before bonding but not usable**: on SDK 36 / iOS 26 discovery shows ANCS and AMS with `bond=NONE`, yet the characteristics "require authorization". Bond before subscribing.
+
+18. **Two links from one iPhone**: during pairing the TW Probe log showed a second link from the iPhone's public identity address (`B8:45:EB…`, Apple OUI) closing ~22 s later, besides the LE link from its private address. Likely a BR/EDR attempt on the dual-mode watch. Always bond over the LE link.

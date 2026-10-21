@@ -33,6 +33,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import app.tandemwear.watch.ble.AncsConstants
+import app.tandemwear.watch.ble.InboundLinkMonitor
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -219,10 +220,10 @@ class AdvertiseProbeActivity : Activity() {
         override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> {
-                    log("INBOUND connection from ${device.address} (bond=${bondName(device.bondState)})")
+                    log("INBOUND connection from ${InboundLinkMonitor.describe(device)}")
                     openClient(device)
                 }
-                BluetoothProfile.STATE_DISCONNECTED -> log("inbound link closed by ${device.address}, status=$status")
+                BluetoothProfile.STATE_DISCONNECTED -> log("inbound link closed by ${InboundLinkMonitor.describe(device)}, status=$status")
             }
         }
     }

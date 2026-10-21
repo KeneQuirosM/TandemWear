@@ -10,25 +10,27 @@
 
 **Subscribe to Data Source BEFORE Notification Source** (Apple requirement).
 
-## BLE Connection Flow
+## BLE Connection Flow (see docs/EMPAREJAMIENTO.md)
 
-1. Watch scans → finds iPhone (or uses bonded device) — being replaced by advertising + pairing from iPhone Settings (see docs/EXPERIMENTO_ANUNCIO_BLE.md)
-2. `connectGatt()` → `onConnectionStateChange(CONNECTED)`
-3. `requestMtu(512)` → `onMtuChanged` → `discoverServices()`
-
-**Every GATT operation goes through `GattOperationQueue`** (one in flight, 5 s timeout). Never call `gatt.read/write/discover/requestMtu` directly. `BleConnectionManager` state lives on a single-threaded dispatcher; GATT callbacks hop onto it. Control Point attribute requests wait for the full Data Source response (or 3 s timeout) before the next one.
-4. ANCS not visible (not bonded) → `createBond()` → iOS pairing dialog
-5. `BOND_BONDED` → `discoverServices()` again → ANCS visible
+1. Watch advertises (legacy, connectable, 128-bit ANCS service solicitation; name in scan response) — `WatchAdvertiser`
+2. User taps the watch in iPhone › Settings › Bluetooth; the iPhone opens the LE link — seen by `InboundLinkMonitor` (GATT server, no services)
+3. `PairingPolicy.onInboundLink` → ATTACH → `BleConnectionManager.attachInbound` opens a GATT client on that link
+4. `requestMtu(512)` → `discoverServices()` (ANCS may be visible before bonding, but its characteristics require authorization)
+5. Not bonded → `createBond()` over LE → `BOND_BONDED` → store the identity address that newly appears in the bonded list (`PairingPolicy.newlyBondedAddress`) in `PairedPhoneStore`
 6. Subscribe DS CCCD → Subscribe NS CCCD → session active (guard against double subscription)
 7. NS events → fetch attributes via CP → parse DS → post Android notification
 
+**Every GATT operation goes through `GattOperationQueue`** (one in flight, 5 s timeout). Never call `gatt.read/write/discover/requestMtu` directly. `BleConnectionManager` state lives on a single-threaded dispatcher; GATT callbacks hop onto it. Control Point attribute requests wait for the full Data Source response (or 3 s timeout) before the next one.
+
 ## Reconnection
 
-- `autoConnect=true` in `connectGatt()` for bonded devices (chipset whitelist, battery efficient)
-- Exponential backoff: 3s → 6s → 12s → 30s cap
-- `START_STICKY` service + `BootReceiver` for persistence
-- `getBondedIPhone()` matches device names containing "iPhone", "AncsBrid", "AncsBridge", "WearBrid", "WearBridge"
-- GAP Device Name characteristic (0x2A00) read after ANCS connects for real iPhone name
+- Never identify the iPhone by name or by a pre-bond address (RPAs rotate). Only the bonded identity address in `PairedPhoneStore`, trusted while the bond exists
+- Two paths: (a) watch advertises in RECONNECT mode (~1 s interval) and the iPhone reconnects to it; (b) `connectGatt(autoConnect=true)` to the bonded identity address
+- Advertising stops while connected and in `RepairNeeded`
+- Exponential backoff 3s → 30s cap; only bonded targets are re-requested
+- `BootReceiver` starts the service only if paired + BLUETOOTH_CONNECT granted; adapter ON/OFF restarts the link layer
+- Bond loss (iPhone forgot the watch): Android 16 `ACTION_KEY_MISSING` or 2 consecutive key-loss signals (`KeyLossDetector`) → `ConnectionState.RepairNeeded`
+- Pairing/connection milestones go to `DiagnosticsLog` (logcat tag `TandemWear`; shown by the debug "TW Probe ANCS" app)
 
 ## Silent/Pre-existing Notification Handling
 
