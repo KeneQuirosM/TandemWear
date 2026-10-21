@@ -34,6 +34,10 @@
 - Each link logs `initiator=watch|iphone|unknown` and a per-day `link: ended … | today …` summary (LinkStats) — data for the pending B3/B4 decision (docs/EMPAREJAMIENTO.md)
 - BLE-layer timers use coroutine `delay()`, which stalls in Doze (uptime): seen as 7–23 min reconnect gaps
 
+## AMS (music, Phase 3)
+
+Service `89D3502B-0F36-433A-8EF4-C502AD55F8DC`; Remote Command `9B3C81D8-…` (write/notify), Entity Update `2F7CABCE-…` (write with response/notify), Entity Attribute `C6B2F38C-…` (read/write) — verified against Apple's AMS Reference. `ble/AmsClient` (plan in `ams/AmsPolicy`), state in `ams/MusicSession` → `AncsService.sharedMusic`. Gotcha 24.
+
 ## Silent/Pre-existing Notification Handling
 
 - Pre-existing notifications (`EVENT_FLAG_PRE_EXISTING`) are skipped at NS event level — no GATT writes, no haptics

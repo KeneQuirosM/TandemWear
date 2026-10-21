@@ -1,10 +1,14 @@
 # Fase 3 — Música del iPhone (AMS): plan
 
-**Estado:** investigación y parser. El código de `ams/` es puro, tiene tests y **no está conectado** a la capa BLE.
+**Estado (21-10-2026):** F3.1–F3.6 hechos. AMS ya está conectado a la sesión ANCS y hay reproductor, tarjeta en Inicio, tarjeta en el Tile y el ajuste «Música». Todo lo que depende del reloj está **por verificar** (ver `docs/PRUEBAS_FASE3.md`).
 
 ## Fuente
 
-Apple, *Apple Media Service Reference* (especificación + apéndice A, tablas A-1 a A-8), consultada el 21-10-2026. Los UUID están verificados contra el apéndice y fijados en `AmsProtocolTest`.
+Apple, *Apple Media Service Reference* (especificación + apéndice A, tablas A-1 a A-8), en developer.apple.com. **Volví a verificarla el 21-10-2026 al empezar la Fase 3:** los UUID, los identificadores, el formato de las notificaciones y el orden de suscripción coinciden con el código, y están fijados en `AmsProtocolTest`.
+
+Apple no especifica:
+- si una segunda escritura de Entity Update para la misma entidad reemplaza la suscripción anterior o se suma. Por eso se pide todo en **una** escritura por entidad;
+- si avisa cuando cambia la app que reproduce. Por verificar.
 
 | Elemento | UUID | Propiedades |
 |---|---|---|
@@ -32,21 +36,40 @@ Apple, *Apple Media Service Reference* (especificación + apéndice A, tablas A-
 - `ams/MediaState.kt` es un reductor inmutable con el estado de la música. Lleva la lista de valores truncados para pedirlos completos por Entity Attribute.
 - 8 tests en `AmsProtocolTest`.
 
-## Integración (pendiente, requiere tocar la capa BLE → `PENDIENTE_CAPA_BLE.md` #2)
+## Cómo quedó (F3.1–F3.6)
 
-1. Tras activar la sesión ANCS (DS → NS), buscar el servicio AMS en el mismo `BluetoothGatt` (aparece en el descubrimiento, gotcha 17).
-2. Suscribirse en este orden, todo por `GattOperationQueue`:
-   - el CCCD de Entity Update;
-   - el CCCD de Remote Command;
-   - las 3 escrituras de `defaultSubscriptions()`.
-   La especificación exige suscribirse a Entity Update **antes** de escribir comandos.
-3. Las notificaciones pasan por `parseEntityUpdate` y luego por `MediaState.apply`, que alimenta un `StateFlow<MediaState>`.
-4. Cuando un valor llega truncado: escribir en Entity Attribute y luego leerlo. Una operación a la vez, sin bloquear ANCS.
-5. Los botones de la UI escriben en Remote Command. Solo se muestran los comandos que el iPhone anuncia en `supportedCommands`.
-6. Al terminar la sesión se descarta el estado, igual que los UID de ANCS.
+| Paso | Qué |
+|---|---|
+| F3.1 | `ble/AmsClient`: suscripción y comandos. Cada paso espera a que ANCS esté libre (la cola sin nada en curso ni pendiente, ninguna petición de atributos ANCS en curso y 500 ms sin actividad ANCS). Empieza 5 s después de `SESSION ACTIVE`. Tiempo límite de 1,5 s por operación. Si falla, AMS se apaga para esa sesión y ANCS sigue igual. Cada paso queda en el log (`ams: …`) con su duración y con lo que esperó a ANCS |
+| F3.2 | `ams/MusicSession` (reductor puro) y `AncsService.sharedMusic` |
+| F3.3 | Reproductor (`ui/music/`) y tarjeta de música en Inicio |
+| F3.4 | Tarjeta de música en el Tile, con play/pausa sin abrir la app |
+| F3.5 | Ajuste «Música», que se aplica en vivo |
+| F3.6 | Esta documentación y `docs/PRUEBAS_FASE3.md` |
+
+**Orden de la suscripción (`AmsPolicy.subscriptionPlan`):**
+1. activar las notificaciones de Entity Update;
+2. activar las notificaciones de Remote Command;
+3. escribir en Entity Update la entidad Player: nombre, PlaybackInfo y volumen;
+4. Queue: índice, total, aleatorio y repetición;
+5. Track: artista, álbum, título y duración.
+
+**Cuándo suscribirse:** la constante `AmsPolicy.START_MODE` lo decide.
+- `ON_CONNECT` (actual): al conectar.
+- `ON_DEMAND`: solo cuando el reproductor está abierto. Para pasar a este modo basta con cambiar la constante; el reproductor ya avisa cuando está en pantalla (`ACTION_MUSIC_DEMAND`). Si las 5 escrituras de cada reconexión hacen vibrar el reloj (gotcha 10), se cambia a este modo.
+- Pendiente para `ON_DEMAND`: el Tile todavía no pide la suscripción, así que en ese modo solo mostraría música después de abrir el reproductor.
+
+**Valores truncados:** si título, artista o álbum llegan truncados, se piden completos por Entity Attribute (escribir y luego leer), también esperando a que ANCS esté libre.
+
+**Progreso:** se calcula con la fórmula de Apple, `transcurrido + (ahora − recibido) × velocidad`, usando `elapsedRealtime` como reloj. La pantalla lo redibuja cada segundo solo mientras suena y está encendida.
+
+**Volumen:** AMS solo permite subir y bajar paso a paso. El nivel mostrado es el que informa el iPhone (de 0 a 1).
+
+**MediaSession:** evaluada como viable, pero queda para después, como experimento aparte. Ver la evaluación del 21-10 en el chat y el pendiente #5 en `PENDIENTE_CAPA_BLE.md`.
 
 ## Riesgos y cosas por verificar en el reloj
 
-- Si iOS 26 deja usar AMS con el mismo vínculo sin pedir otro permiso. **Por verificar.**
-- Escrituras GATT frecuentes podrían provocar vibraciones del sistema (gotcha 10). Hay que limitar las escrituras a las acciones del usuario.
-- Volumen: AMS solo da subir y bajar, no un valor absoluto.
+- Si iOS 26 deja usar AMS en el mismo enlace sin pedir otro permiso. El log del 21-10 mostró `AMS=true`.
+- Si suscribirse hace vibrar el reloj en cada reconexión. En ese caso, pasar a `ON_DEMAND`.
+- Si el iPhone avisa cuando cambia la app que reproduce (de Spotify a Música, por ejemplo).
+- Volumen: el tamaño de cada paso lo decide iOS.
