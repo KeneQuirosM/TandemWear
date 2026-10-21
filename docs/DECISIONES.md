@@ -25,3 +25,4 @@ Regla: ante una duda de diseño o arquitectura que el brief no cubre, se elige l
 | 19 | 2.6 | Con «Ocultar con pantalla bloqueada», el Tile tampoco muestra el texto del mensaje | Mostrarlo siempre | El Tile se ve sin desbloquear |
 | 20 | 2.8 | Modo ambiente: se superpone una vista negra con contornos en gris; con protección contra quemado se desplaza unos dp cada minuto | Atenuar la UI interactiva | Menos píxeles encendidos. La navegación queda debajo y conserva su estado |
 | 21 | 2.8 | Capturas con Roborazzi en modo grabación (sin comparar con una base) | Tests de regresión de capturas | No hay capturas de referencia todavía. Sirven para ver la UI sin el reloj |
+| 22 | 2.8 | Roborazzi **1.60.0** | 1.76.0 (la última) | Desde la 1.61.0, Roborazzi está compilado con metadatos de Kotlin 2.3, y el proyecto usa Kotlin 2.1 (CI, intento 1). Subir Kotlin quedaría fuera de alcance |
