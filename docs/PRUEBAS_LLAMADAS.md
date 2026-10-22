@@ -109,3 +109,20 @@ Qué cambió: los botones que trae una notificación del iPhone en el reloj (por
 2. Igual con el botón negativo (por ejemplo, «Eliminar» o «Borrar»): ocurre en el iPhone.
 3. Una notificación de una sesión anterior (después de reconectar): al tocar un botón, solo se cierra en el reloj y aparece `ancs: action on a notification from an ended session — dismissed locally only`. No debe afectar a otra notificación del iPhone.
 4. Desde Inicio › Recientes › detalle: los botones funcionan igual que antes.
+
+## C7. Frases en inglés con la misma regla conservadora
+
+Qué cambió: en inglés solo hacen sonar el reloj las frases con «incoming» o «calling», igual que en español:
+
+- suenan: `incoming call`, `incoming voice/video/audio call`, `is calling`, `calling you`;
+- **ya no suenan** «Video call», «Voice call» o «Audio call» a secas, ni «Ringing» ni el emoji ☎ solo, porque pueden aparecer en un chat.
+
+Las notificaciones de WhatsApp, Teléfono o FaceTime que mencionan una llamada pero no se reconocen quedan en el log como `call: not a ringing call (…): "…"`. Con esas líneas ampliamos la tabla.
+
+Con el iPhone en **inglés**:
+
+1. Llamada de voz por WhatsApp: se abre la pantalla de llamada. Si no se abre, copia la línea `call: not a ringing call` del log y pásamela.
+2. Videollamada por WhatsApp: igual que el paso 1.
+3. Un chat de WhatsApp que diga «video call later?»: notificación normal, sin pantalla de llamada.
+4. Llamada perdida («Missed voice call»): notificación normal.
+5. Llamada normal y FaceTime: igual que antes, porque llegan con la categoría de llamada.

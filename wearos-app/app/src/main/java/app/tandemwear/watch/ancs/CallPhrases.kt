@@ -26,10 +26,11 @@ object CallPhrases {
             "llamada entrante", "llamada de voz entrante", "llamada de audio entrante",
             "videollamada entrante", "te esta llamando", "esta llamando"
         ),
-        // Unchanged from before CallPhrases (behaviour kept)
+        // Same rule as Spanish: "incoming" or "calling" only. A bare "video call" or
+        // "voice call" also appears in chat messages ("video call later?")
         "en" to listOf(
-            "incoming call", "incoming voice", "incoming video", "incoming audio",
-            "audio call", "video call", "voice call", "is calling", "ringing"
+            "incoming call", "incoming voice call", "incoming video call", "incoming audio call",
+            "incoming voice", "incoming video", "incoming audio", "is calling", "calling you"
         )
     )
 
@@ -42,7 +43,6 @@ object CallPhrases {
     /** Call-related words: an unrecognised call-app text is only logged if it has one (privacy). */
     private val CALL_HINTS = listOf("llam", "call", "video", "voz", "voice", "audio", "facetime")
 
-    private const val PHONE_SYMBOL = "☎"
     private val MARKS = Regex("\\p{Mn}+")
     private val SPACES = Regex("\\s+")
     private val RINGING_RX = RINGING.values.flatten().map(::wordRegex)
@@ -61,7 +61,7 @@ object CallPhrases {
     fun hasCallIndicator(text: String): Boolean {
         val n = normalize(text)
         if (NOT_RINGING_RX.any { it.containsMatchIn(n) }) return false
-        return PHONE_SYMBOL in text || RINGING_RX.any { it.containsMatchIn(n) }
+        return RINGING_RX.any { it.containsMatchIn(n) }
     }
 
     fun isIncomingCall(

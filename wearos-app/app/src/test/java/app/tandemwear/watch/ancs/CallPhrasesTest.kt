@@ -30,11 +30,28 @@ class CallPhrasesTest {
     }
 
     @Test
-    fun `english phrases still ring`() {
+    fun `english incoming and calling phrases ring`() {
         assertTrue(ringing("Mom", "Incoming voice call"))
-        assertTrue(ringing("Mom", "☎ Voice Call"))
+        assertTrue(ringing("Mom", "Incoming Video Call"))
+        assertTrue(ringing("Mom", "☎ Incoming audio call"))
         assertTrue(ringing("Bob is calling", ""))
-        assertTrue(ringing("Mom", "Ringing…"))
+        assertTrue(ringing("Bob", "Calling you…"))
+    }
+
+    @Test
+    fun `bare english call words do not ring`() {
+        assertFalse(ringing("Mom", "Video call"))
+        assertFalse(ringing("Mom", "Voice call"))
+        assertFalse(ringing("Mom", "Audio call"))
+        assertFalse(ringing("Ana", "Video call later?"))
+        assertFalse(ringing("Mom", "Ringing…"))
+        // The phone emoji alone is chat text too
+        assertFalse(ringing("Mom", "☎ Voice Call"))
+    }
+
+    @Test
+    fun `unrecognised english call texts are logged for the table`() {
+        assertEquals("mom | video call", CallPhrases.unrecognisedCallApp(whatsApp, false, "Mom", "Video call"))
     }
 
     @Test

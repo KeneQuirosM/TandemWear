@@ -50,4 +50,4 @@
 
 25. **`NotificationActionReceiver` has no intent-filter**: a broadcast with only `setPackage` never reaches it. Always build action intents with `NotificationActionReceiver.intent(...)` (explicit component).
 
-26. **Call phrases ring only when "incoming"**: WhatsApp calls arrive as Social; `CallPhrases` matches per-language phrases (accent/case-insensitive, whole words). Never add a bare "videollamada"/"llamada de voz" (chat text) and keep the missed/ended exclusions.
+26. **Call phrases ring only when "incoming"**: WhatsApp calls arrive as Social; `CallPhrases` matches per-language phrases (accent/case-insensitive, whole words). Both languages ring only on "incoming"/"calling" phrases: never add a bare "videollamada", "llamada de voz", "video call", "voice call", "ringing" or the ☎ emoji (chat text), and keep the missed/ended exclusions. Unrecognised call-app texts are logged (`call: not a ringing call`) to grow the table.
