@@ -20,6 +20,15 @@ class NotificationActionReceiver : BroadcastReceiver() {
         const val EXTRA_SESSION_ID = "ancs_session_id"
         /** Android notification id, so a stale notification can still be dismissed locally. */
         const val EXTRA_ANDROID_ID = "android_notification_id"
+
+        /**
+         * Explicit intent for this receiver. It has no intent-filter, so an intent that only
+         * names the package never reaches it (that is why notification buttons did nothing).
+         */
+        fun intent(context: Context, action: String, uid: Long): Intent =
+            Intent(context, NotificationActionReceiver::class.java)
+                .setAction(action)
+                .putExtra(EXTRA_NOTIFICATION_UID, uid)
     }
 
     override fun onReceive(context: Context, intent: Intent) {

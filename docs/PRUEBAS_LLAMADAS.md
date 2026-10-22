@@ -29,7 +29,7 @@ Qué cambió: el botón **Contestar** de la notificación de llamada (CallStyle)
 6. Durante una llamada con Spotify sonando, la música no se ve afectada.
 7. Después de contestar desde el reloj, la conversación se oye en el **iPhone** sin cortes. El reloj está conectado al iPhone como manos libres (HFP), así que iOS podría intentar mandar el audio al reloj; ver `docs/AUDIO_LLAMADAS.md`.
 
-**Nota:** el receptor de las acciones (`NotificationActionReceiver`) no tiene intent-filter. Por eso las acciones que lo llaman solo con el paquete (Rechazar de la llamada, y los botones de las notificaciones normales) probablemente no le llegan. El nuevo Contestar lo llama de forma explícita. No toqué Rechazar, como pediste; si la prueba 4 lo confirma, lo corrijo en un commit aparte.
+**Nota (resuelta en C5 y C6):** el receptor de las acciones (`NotificationActionReceiver`) no tiene intent-filter. Por eso las acciones que lo llaman solo con el paquete (Rechazar de la llamada, y los botones de las notificaciones normales) probablemente no le llegan. El nuevo Contestar lo llama de forma explícita. No toqué Rechazar, como pediste; si la prueba 4 lo confirma, lo corrijo en un commit aparte.
 
 ## C3. Pantalla completa como camino principal; apertura directa como respaldo; medición de Telecom
 
@@ -92,3 +92,11 @@ Con el iPhone en español:
 7. Llamada grupal de WhatsApp: anota qué pasa. Si no suena, revisa la línea `call: not a ringing call` del log.
 
 Por verificar: las frases exactas de WhatsApp y FaceTime en iOS 26 en español. La tabla está en `ancs/CallPhrases.kt`.
+
+## C5. Rechazar de la notificación de llamada (destino explícito)
+
+Qué cambió: el **Rechazar** de la notificación de llamada ahora llega a su receptor. Antes no llegaba, porque la acción no tenía destino explícito y el receptor no tiene filtro. Envía lo mismo que el Rechazar de la pantalla de llamada: la acción negativa con el UID, sin sesión.
+
+1. Llamada entrante. Si se abre la pantalla de llamada, baja a la notificación (o espera a que la pantalla se cierre) y toca **Rechazar** en la notificación. El iPhone rechaza la llamada y en el log aparece `call: decline uid=… session=none`.
+2. Rechazar desde la **pantalla de llamada**: igual que antes.
+3. Rechazar con el reloj bloqueado y la pantalla apagada (solo la notificación): el iPhone rechaza la llamada.

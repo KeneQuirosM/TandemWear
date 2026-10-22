@@ -999,24 +999,19 @@ class AncsService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         // Answer sends the ANCS positive action itself (bound to this session), like the call
-        // screen's Answer; the iPhone's MODIFIED event then shows "Active on iPhone".
-        // Explicit component: the receiver has no intent-filter, so a package-only intent misses it
+        // screen's Answer; the iPhone's MODIFIED event then shows "Active on iPhone"
         val answerPendingIntent = PendingIntent.getBroadcast(
             this, 1,
-            Intent(this, NotificationActionReceiver::class.java).apply {
-                action = NotificationActionReceiver.ACTION_POSITIVE
-                putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_UID, notification.uid)
+            NotificationActionReceiver.intent(this, NotificationActionReceiver.ACTION_POSITIVE, notification.uid).apply {
                 putExtra(NotificationActionReceiver.EXTRA_SESSION_ID, sessionId)
                 putExtra(NotificationActionReceiver.EXTRA_ANDROID_ID, NOTIFICATION_ID_CALL)
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        // Decline: same action and extras as the call screen's Decline (uid only, no session)
         val declinePendingIntent = PendingIntent.getBroadcast(
             this, 2,
-            Intent(NotificationActionReceiver.ACTION_NEGATIVE).apply {
-                setPackage(packageName)
-                putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_UID, notification.uid)
-            },
+            NotificationActionReceiver.intent(this, NotificationActionReceiver.ACTION_NEGATIVE, notification.uid),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val caller = androidx.core.app.Person.Builder()
