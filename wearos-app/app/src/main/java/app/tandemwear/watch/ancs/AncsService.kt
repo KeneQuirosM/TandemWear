@@ -805,9 +805,7 @@ class AncsService : Service() {
         if (notification.positiveActionLabel != null) {
             val positiveIntent = PendingIntent.getBroadcast(
                 this, notifId,
-                Intent(NotificationActionReceiver.ACTION_POSITIVE).apply {
-                    setPackage(packageName)
-                    putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_UID, notification.uid)
+                NotificationActionReceiver.intent(this, NotificationActionReceiver.ACTION_POSITIVE, notification.uid).apply {
                     putExtra(NotificationActionReceiver.EXTRA_SESSION_ID, sessionId)
                     putExtra(NotificationActionReceiver.EXTRA_ANDROID_ID, notifId)
                 },
@@ -819,9 +817,7 @@ class AncsService : Service() {
         if (notification.negativeActionLabel != null) {
             val negativeIntent = PendingIntent.getBroadcast(
                 this, notifId + 500_000,
-                Intent(NotificationActionReceiver.ACTION_NEGATIVE).apply {
-                    setPackage(packageName)
-                    putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_UID, notification.uid)
+                NotificationActionReceiver.intent(this, NotificationActionReceiver.ACTION_NEGATIVE, notification.uid).apply {
                     putExtra(NotificationActionReceiver.EXTRA_SESSION_ID, sessionId)
                     putExtra(NotificationActionReceiver.EXTRA_ANDROID_ID, notifId)
                 },

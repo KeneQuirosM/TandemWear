@@ -100,3 +100,12 @@ Qué cambió: el **Rechazar** de la notificación de llamada ahora llega a su re
 1. Llamada entrante. Si se abre la pantalla de llamada, baja a la notificación (o espera a que la pantalla se cierre) y toca **Rechazar** en la notificación. El iPhone rechaza la llamada y en el log aparece `call: decline uid=… session=none`.
 2. Rechazar desde la **pantalla de llamada**: igual que antes.
 3. Rechazar con el reloj bloqueado y la pantalla apagada (solo la notificación): el iPhone rechaza la llamada.
+
+## C6. Botones de las notificaciones normales (destino explícito)
+
+Qué cambió: los botones que trae una notificación del iPhone en el reloj (por ejemplo «Marcar como leído» o «Eliminar», según la app) usaban el mismo tipo de acción sin destino que el Rechazar de la llamada. Por eso probablemente no hacían nada. Los botones del **detalle de la notificación dentro de TandemWear** van directo al servicio y ya funcionaban; no cambian.
+
+1. Notificación con acciones (por ejemplo, un correo de Mail o un mensaje de WhatsApp). Toca su botón positivo en la notificación del reloj: la acción ocurre en el iPhone y la notificación desaparece del reloj.
+2. Igual con el botón negativo (por ejemplo, «Eliminar» o «Borrar»): ocurre en el iPhone.
+3. Una notificación de una sesión anterior (después de reconectar): al tocar un botón, solo se cierra en el reloj y aparece `ancs: action on a notification from an ended session — dismissed locally only`. No debe afectar a otra notificación del iPhone.
+4. Desde Inicio › Recientes › detalle: los botones funcionan igual que antes.
