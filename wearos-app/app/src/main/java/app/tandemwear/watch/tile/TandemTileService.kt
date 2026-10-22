@@ -8,6 +8,8 @@ import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.LayoutElementBuilders.LayoutElement
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.TimelineBuilders
+import androidx.wear.protolayout.LayoutElementBuilders
+import androidx.wear.protolayout.material3.ColorScheme
 import androidx.wear.protolayout.material3.MaterialScope
 import androidx.wear.protolayout.material3.Typography
 import androidx.wear.protolayout.material3.materialScope
@@ -100,7 +102,7 @@ class TandemTileService : TileService() {
             id = "open_player"
         )
         val toggle = clickable(id = CLICK_MEDIA_TOGGLE)
-        return materialScope(context, request.deviceConfiguration, allowDynamicTheme = false) {
+        return materialScope(context, request.deviceConfiguration, allowDynamicTheme = false, defaultColorScheme = TANDEM_SCHEME) {
             primaryLayout(
                 titleSlot = {
                     text(statusText.layoutString, typography = Typography.TITLE_SMALL, color = toneColor.argb)
@@ -108,6 +110,20 @@ class TandemTileService : TileService() {
                 mainSlot = {
                     if (music != null) musicCard(context, music, openPlayer)
                     else mainContent(context, model, snapshot.hideOnTile, openApp)
+                },
+                // While music plays the card is the music one: pending notifications go above the button
+                labelForBottomSlot = if (music != null && model.pending > 0) {
+                    {
+                        text(
+                            context.resources.getQuantityString(R.plurals.tile_pending, model.pending, model.pending).layoutString,
+                            typography = Typography.LABEL_SMALL,
+                            color = COLOR_MUTED.argb,
+                            maxLines = 1,
+                            overflow = LayoutElementBuilders.TEXT_OVERFLOW_ELLIPSIZE
+                        )
+                    }
+                } else {
+                    null
                 },
                 bottomSlot = {
                     if (music != null && music.canTogglePlay) {
@@ -133,8 +149,8 @@ class TandemTileService : TileService() {
         val state = context.getString(if (music.isPlaying) R.string.player_state_playing else R.string.player_state_paused)
         return titleCard(
             onClick = openPlayer,
-            title = { text((music.title ?: context.getString(R.string.player_unknown_title)).layoutString, maxLines = 1) },
-            content = { text((music.artist ?: music.appName ?: "").layoutString, maxLines = 2) },
+            title = { text((music.title ?: context.getString(R.string.player_unknown_title)).layoutString, maxLines = 1, overflow = ELLIPSIZE) },
+            content = { text((music.artist ?: music.appName ?: "").layoutString, maxLines = 2, overflow = ELLIPSIZE) },
             time = { text(state.layoutString, maxLines = 1) }
         )
     }
@@ -169,8 +185,8 @@ class TandemTileService : TileService() {
         val pendingLabel = context.resources.getQuantityString(R.plurals.tile_pending, model.pending, model.pending)
         return titleCard(
             onClick = openApp,
-            title = { text(title.layoutString, maxLines = 1) },
-            content = { text((message ?: pendingLabel).layoutString, maxLines = 2) },
+            title = { text(title.layoutString, maxLines = 1, overflow = ELLIPSIZE) },
+            content = { text((message ?: pendingLabel).layoutString, maxLines = 2, overflow = ELLIPSIZE) },
             time = if (message != null) { { text(pendingLabel.layoutString, maxLines = 1) } } else null
         )
     }
@@ -184,6 +200,46 @@ class TandemTileService : TileService() {
         private const val COLOR_RECONNECTING = 0xFFF6C98A.toInt()
         private const val COLOR_IDLE = 0xFFA9ADB1.toInt()
         private const val COLOR_ATTENTION = 0xFFF2B8B5.toInt()
+        private const val COLOR_MUTED = 0xFFA9ADB1.toInt()
+        private const val ELLIPSIZE = LayoutElementBuilders.TEXT_OVERFLOW_ELLIPSIZE
+
+        /**
+         * TandemColors for ProtoLayout Material 3 (its default scheme is lilac): black
+         * background, dark grey surfaces, teal accent. Cards use the container colours
+         * (dark surface + light text), the edge button the teal primary. Mostly black
+         * pixels: cheap on OLED.
+         */
+        private val TANDEM_SCHEME = ColorScheme(
+            primary = 0xFF8CD3E8.toInt().argb,
+            primaryDim = 0xFF5FA9BD.toInt().argb,
+            primaryContainer = 0xFF1F2426.toInt().argb,
+            onPrimary = 0xFF00363F.toInt().argb,
+            onPrimaryContainer = 0xFFE3E2E6.toInt().argb,
+            secondary = 0xFF8CD3E8.toInt().argb,
+            secondaryDim = 0xFF5FA9BD.toInt().argb,
+            secondaryContainer = 0xFF2C3134.toInt().argb,
+            onSecondary = 0xFF00363F.toInt().argb,
+            onSecondaryContainer = 0xFFE3E2E6.toInt().argb,
+            tertiary = 0xFF8CD3E8.toInt().argb,
+            tertiaryDim = 0xFF5FA9BD.toInt().argb,
+            tertiaryContainer = 0xFF0F4A57.toInt().argb,
+            onTertiary = 0xFF00363F.toInt().argb,
+            onTertiaryContainer = 0xFFBEEBF7.toInt().argb,
+            surfaceContainerLow = 0xFF161A1C.toInt().argb,
+            surfaceContainer = 0xFF1F2426.toInt().argb,
+            surfaceContainerHigh = 0xFF2C3134.toInt().argb,
+            onSurface = 0xFFE3E2E6.toInt().argb,
+            onSurfaceVariant = 0xFFC4C7CA.toInt().argb,
+            outline = 0xFF8A9094.toInt().argb,
+            outlineVariant = 0xFF3F4548.toInt().argb,
+            background = 0xFF000000.toInt().argb,
+            onBackground = 0xFFE3E2E6.toInt().argb,
+            error = 0xFFF2B8B5.toInt().argb,
+            errorDim = 0xFFD99E9B.toInt().argb,
+            errorContainer = 0xFF601410.toInt().argb,
+            onError = 0xFF601410.toInt().argb,
+            onErrorContainer = 0xFFF2B8B5.toInt().argb
+        )
 
         fun statusLabel(context: Context, model: TileModel): String = context.getString(
             when (model.status) {
