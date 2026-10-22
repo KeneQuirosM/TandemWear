@@ -272,7 +272,6 @@ private fun Controls(model: PlayerModel.Playing, v: PlayerLayout.Variant, onComm
     }
 }
 
-@Composable
 /**
  * Volume −/+ with the level between them ("60%") when it fits; otherwise the level is only
  * read out by TalkBack with each button.
