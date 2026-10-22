@@ -180,4 +180,22 @@
     <string name="license_mit_body" translatable="false">MIT License. Copyright (c) 2026 Karthik Rajendran (WearBridge, original work); Copyright (c) 2026 TandemWear contributors (modifications).\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</string>
     <string name="license_apache_body" translatable="false">Licensed under the Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0). Distributed on an \"AS IS\" basis, without warranties or conditions of any kind.</string>
     <string name="license_icons_body" translatable="false">Material Symbols / Material Icons: Apache License 2.0, Google. Lucide icons: ISC License, Copyright (c) Lucide Contributors.</string>
+    <string name="conversation_vip_add">Mark as VIP</string>
+    <string name="conversation_vip_remove">Remove from VIP</string>
+    <string name="conversation_mute_title">Silence this conversation</string>
+    <string name="conversation_mute_15m">15 minutes</string>
+    <string name="conversation_mute_1h">1 hour</string>
+    <string name="conversation_mute_tomorrow">Until tomorrow 7:00</string>
+    <string name="conversation_unmute">Unsilence</string>
+    <string name="conversation_muted_until">Silenced until %1$s</string>
+    <string name="conversation_muted_until_tomorrow">Silenced until tomorrow %1$s</string>
+    <string name="settings_conversations">Conversations</string>
+    <string name="settings_conversations_desc">%1$d VIP · %2$d silenced</string>
+    <string name="settings_vip_quiet_hours">VIPs ring in quiet hours</string>
+    <string name="settings_vip_quiet_hours_desc">Only TandemWear\'s quiet hours, not the watch\'s Do Not Disturb</string>
+    <string name="settings_vip_list">VIP</string>
+    <string name="settings_vip_empty">None yet. Open a notification in Recent and tap "Mark as VIP".</string>
+    <string name="settings_muted_list">Silenced</string>
+    <string name="settings_muted_empty">No silenced conversations.</string>
+    <string name="settings_tap_to_remove">%1$s · tap to remove</string>
 </resources>

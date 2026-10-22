@@ -17,7 +17,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import app.tandemwear.watch.notify.Conversation
+import app.tandemwear.watch.notify.MuteDuration
 import kotlinx.coroutines.flow.stateIn
+import java.time.ZonedDateTime
 import kotlinx.coroutines.launch
 
 /** Settings screens. Every change is written to DataStore; AncsService picks it up live. */
@@ -50,6 +53,23 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setHideContentOnLockScreen(hide: Boolean) = viewModelScope.launch { repository.setHideContentOnLockScreen(hide) }
 
     fun clearHistory() = viewModelScope.launch(Dispatchers.IO) { history.clear() }
+
+    fun setVip(conversation: Conversation, vip: Boolean) = viewModelScope.launch {
+        repository.setVip(conversation, vip)
+        // A VIP is meant to be heard: marking it lifts a silence on the same conversation
+        if (vip) repository.unmuteConversation(conversation, System.currentTimeMillis())
+    }
+
+    fun setVipRingsInQuietHours(enabled: Boolean) = viewModelScope.launch { repository.setVipRingsInQuietHours(enabled) }
+
+    fun mute(conversation: Conversation, duration: MuteDuration) = viewModelScope.launch {
+        val now = ZonedDateTime.now()
+        repository.muteConversation(conversation, duration.untilMillis(now), now.toInstant().toEpochMilli())
+    }
+
+    fun unmute(conversation: Conversation) = viewModelScope.launch {
+        repository.unmuteConversation(conversation, System.currentTimeMillis())
+    }
 
     /**
      * Sound and vibration per category are the system's notification channels (decision 2,

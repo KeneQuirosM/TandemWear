@@ -30,6 +30,7 @@ import androidx.wear.compose.material3.Text
 import app.tandemwear.watch.R
 import app.tandemwear.watch.ancs.AppIconMapper
 import app.tandemwear.watch.data.history.HistoryEntry
+import app.tandemwear.watch.notify.MuteDuration
 import app.tandemwear.watch.ui.components.TandemList
 import app.tandemwear.watch.ui.theme.TandemColors
 import app.tandemwear.watch.ui.theme.TandemType
@@ -46,7 +47,12 @@ fun NotificationDetailScreen(
     currentSessionId: Long?,
     onAction: (HistoryEntry, positive: Boolean) -> Unit,
     onDismiss: (HistoryEntry) -> Unit,
-    onGone: () -> Unit
+    onGone: () -> Unit,
+    /** VIP / silence state of this entry's conversation; null = not offered (no usable title). */
+    conversationOf: (HistoryEntry) -> ConversationUi? = { null },
+    onVip: (HistoryEntry, Boolean) -> Unit = { _, _ -> },
+    onMute: (HistoryEntry, MuteDuration) -> Unit = { _, _ -> },
+    onUnmute: (HistoryEntry) -> Unit = {}
 ) {
     val entry by entryFlow.collectAsState(initial = null)
     val seen = remember { mutableStateOf(false) }
@@ -119,6 +125,14 @@ fun NotificationDetailScreen(
                     modifier = Modifier.padding(horizontal = 8.dp)
                 )
             }
+        }
+        conversationOf(e)?.let { state ->
+            conversationActions(
+                state,
+                onVip = { onVip(e, it) },
+                onMute = { onMute(e, it) },
+                onUnmute = { onUnmute(e) }
+            )
         }
         item {
             OutlinedButton(

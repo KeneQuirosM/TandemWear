@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.DeleteSweep
+import androidx.compose.material.icons.rounded.Forum
 import androidx.compose.material.icons.rounded.LinkOff
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.MusicNote
@@ -35,7 +36,8 @@ fun SettingsScreen(
     onQuietHours: (() -> Unit)?,
     onPrivacy: (() -> Unit)?,
     onClearNotifications: () -> Unit,
-    onDisconnect: () -> Unit
+    onDisconnect: () -> Unit,
+    onConversations: () -> Unit = {}
 ) {
     val settings by viewModel.settings.collectAsState()
 
@@ -48,6 +50,18 @@ fun SettingsScreen(
                 stringResource(R.string.settings_sound_vibration),
                 stringResource(R.string.settings_sound_vibration_desc)
             ) { viewModel.openSystemNotificationSettings() }
+        }
+        item {
+            NavButton(
+                Icons.Rounded.Forum,
+                stringResource(R.string.settings_conversations),
+                stringResource(
+                    R.string.settings_conversations_desc,
+                    settings.vips.size,
+                    settings.mutedConversations.count { it.value > System.currentTimeMillis() }
+                ),
+                onConversations
+            )
         }
         if (onQuietHours != null) {
             item {

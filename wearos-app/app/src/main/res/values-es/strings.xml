@@ -170,4 +170,22 @@
     <!-- Ajuste de música (Fase 3) -->
     <string name="settings_music">Música</string>
     <string name="settings_music_desc">Controla lo que suena en el iPhone</string>
+    <string name="conversation_vip_add">Marcar como VIP</string>
+    <string name="conversation_vip_remove">Quitar de VIP</string>
+    <string name="conversation_mute_title">Silenciar esta conversación</string>
+    <string name="conversation_mute_15m">15 minutos</string>
+    <string name="conversation_mute_1h">1 hora</string>
+    <string name="conversation_mute_tomorrow">Hasta mañana 7:00</string>
+    <string name="conversation_unmute">Quitar silencio</string>
+    <string name="conversation_muted_until">Silenciada hasta %1$s</string>
+    <string name="conversation_muted_until_tomorrow">Silenciada hasta mañana %1$s</string>
+    <string name="settings_conversations">Conversaciones</string>
+    <string name="settings_conversations_desc">%1$d VIP · %2$d silenciadas</string>
+    <string name="settings_vip_quiet_hours">Los VIP suenan en horas de silencio</string>
+    <string name="settings_vip_quiet_hours_desc">Solo en las horas de silencio de TandemWear, no en el No molestar del reloj</string>
+    <string name="settings_vip_list">VIP</string>
+    <string name="settings_vip_empty">Aún no hay. Abre una notificación en Recientes y toca «Marcar como VIP».</string>
+    <string name="settings_muted_list">Silenciadas</string>
+    <string name="settings_muted_empty">No hay conversaciones silenciadas.</string>
+    <string name="settings_tap_to_remove">%1$s · toca para quitar</string>
 </resources>

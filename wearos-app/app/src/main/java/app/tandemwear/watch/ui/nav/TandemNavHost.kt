@@ -1,5 +1,8 @@
 package app.tandemwear.watch.ui.nav
 
+import app.tandemwear.watch.data.history.HistoryEntry
+import app.tandemwear.watch.notify.Conversation
+import app.tandemwear.watch.ui.recent.ConversationUi
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -21,6 +24,7 @@ import app.tandemwear.watch.ui.pairing.PairScreen
 import app.tandemwear.watch.ui.recent.NotificationDetailScreen
 import app.tandemwear.watch.ui.settings.AppSettingsScreen
 import app.tandemwear.watch.ui.settings.AppsScreen
+import app.tandemwear.watch.ui.settings.ConversationsScreen
 import app.tandemwear.watch.ui.settings.PrivacyScreen
 import app.tandemwear.watch.ui.settings.QuietEdge
 import app.tandemwear.watch.ui.settings.QuietHoursScreen
@@ -45,6 +49,7 @@ object Routes {
     const val QUIET_TIME = "quiet/{edge}"
     fun quietTime(edge: QuietEdge) = "quiet/" + edge.name
     const val PRIVACY = "privacy"
+    const val CONVERSATIONS = "conversations"
     const val PLAYER = "player"
 }
 
@@ -108,9 +113,11 @@ fun TandemNavHost(
                     onQuietHours = { navController.navigate(Routes.QUIET) },
                     onPrivacy = { navController.navigate(Routes.PRIVACY) },
                     onClearNotifications = { viewModel.clearAllNotifications() },
-                    onDisconnect = { viewModel.disconnect() }
+                    onDisconnect = { viewModel.disconnect() },
+                    onConversations = { navController.navigate(Routes.CONVERSATIONS) }
                 )
             }
+            composable(Routes.CONVERSATIONS) { ConversationsScreen(settingsViewModel) }
             composable(Routes.QUIET) {
                 QuietHoursScreen(settingsViewModel, onEdit = { navController.navigate(Routes.quietTime(it)) })
             }
@@ -132,14 +139,30 @@ fun TandemNavHost(
                 val id = backStackEntry.arguments?.getString("id")?.toLongOrNull() ?: -1L
                 val entryFlow = remember(id) { viewModel.historyEntry(id) }
                 val sessionId by viewModel.currentSessionId.collectAsState()
+                val settings by settingsViewModel.settings.collectAsState()
                 NotificationDetailScreen(
                     entryFlow = entryFlow,
                     currentSessionId = sessionId,
                     onAction = { entry, positive -> viewModel.performAction(entry, positive) },
                     onDismiss = { viewModel.dismiss(it) },
-                    onGone = { navController.popBackStack() }
+                    onGone = { navController.popBackStack() },
+                    conversationOf = { entry ->
+                        conversationFor(entry)?.let { c ->
+                            ConversationUi(
+                                isVip = settings.isVip(c.appId, c.title),
+                                mutedUntil = settings.mutedUntil(c.appId, c.title, System.currentTimeMillis())
+                            )
+                        }
+                    },
+                    onVip = { entry, vip -> conversationFor(entry)?.let { settingsViewModel.setVip(it, vip) } },
+                    onMute = { entry, d -> conversationFor(entry)?.let { settingsViewModel.mute(it, d) } },
+                    onUnmute = { entry -> conversationFor(entry)?.let { settingsViewModel.unmute(it) } }
                 )
             }
         }
     }
 }
+
+/** The conversation of a history entry: app + title, unless its text was hidden or it has no title. */
+private fun conversationFor(entry: HistoryEntry): Conversation? =
+    if (entry.contentHidden || entry.title.isBlank()) null else Conversation(entry.appId, entry.title)
