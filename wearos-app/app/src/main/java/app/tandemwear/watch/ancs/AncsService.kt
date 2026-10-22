@@ -661,27 +661,17 @@ class AncsService : Service() {
         val appName = resolveAppName(notification.appIdentifier)
         val updatedNotification = notification.copy(appDisplayName = appName)
 
-        // Detect incoming calls by category OR by message content
-        // WhatsApp sends calls as cat=4 (Social) with "☎" or "Incoming" in message
-        // Regular phone may send as cat=1 (IncomingCall) or cat=2 with "Incoming" content
-        val callApps = setOf(
-            "net.whatsapp.WhatsApp", "net.whatsapp.WhatsAppSMB",
-            "com.apple.mobilephone", "com.apple.facetime"
+        // Detect incoming calls by category OR by the text (WhatsApp sends calls as Social).
+        // Phrases per language, accent- and case-insensitive: CallPhrases
+        val isIncomingCall = CallPhrases.isIncomingCall(
+            isCallCategory = notification.categoryId == AncsConstants.CATEGORY_INCOMING_CALL,
+            appIdentifier = notification.appIdentifier,
+            hasPositiveAction = notification.positiveActionLabel != null,
+            title = notification.title,
+            message = notification.message
         )
-        val messageAndTitle = "${notification.message} ${notification.title}"
-        val hasCallIndicator = messageAndTitle.contains("Incoming Call", ignoreCase = true) ||
-            messageAndTitle.contains("Incoming Voice", ignoreCase = true) ||
-            messageAndTitle.contains("Incoming Video", ignoreCase = true) ||
-            messageAndTitle.contains("Incoming Audio", ignoreCase = true) ||
-            messageAndTitle.contains("☎") ||
-            messageAndTitle.contains("Audio Call", ignoreCase = true) ||
-            messageAndTitle.contains("Video Call", ignoreCase = true) ||
-            messageAndTitle.contains("Voice Call", ignoreCase = true) ||
-            messageAndTitle.contains("is calling", ignoreCase = true) ||
-            messageAndTitle.contains("Ringing", ignoreCase = true)
-        val isIncomingCall = notification.categoryId == AncsConstants.CATEGORY_INCOMING_CALL ||
-            (notification.positiveActionLabel != null && hasCallIndicator) ||
-            (notification.appIdentifier in callApps && hasCallIndicator)
+        CallPhrases.unrecognisedCallApp(notification.appIdentifier, isIncomingCall, notification.title, notification.message)
+            ?.let { DiagnosticsLog.log("call: not a ringing call (${notification.appIdentifier} cat=${notification.categoryId}): \"$it\"") }
 
         // Quiet hours without the calls exception: the call is posted as a silent notification
         if (isIncomingCall && NotificationPolicy.shouldRingForCall(settings, minuteOfDay())) {

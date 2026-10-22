@@ -47,3 +47,7 @@
 23. **Coroutine `delay()` stalls in Doze**: it counts uptime, which stops in deep sleep. BLE retry timers of seconds stretched to 7–23 min overnight (docs/EMPAREJAMIENTO.md). Pending fix B3.
 
 24. **AMS must never disturb ANCS**: `AmsClient` starts 5 s after SESSION ACTIVE and runs each GATT step only when the queue is empty, no ANCS attribute request is pending and ANCS has been quiet for 500 ms; 1.5 s timeout per AMS op. Its failures only log (`ams: … FAILED — ANCS unaffected`): never change `ConnectionState`, disconnect or feed `KeyLossDetector`. Subscribe Entity Update notifications before writing entity subscriptions (Apple); one write per entity. `AmsPolicy.START_MODE` switches to on-demand if the writes buzz the watch (gotcha 10).
+
+25. **`NotificationActionReceiver` has no intent-filter**: a broadcast with only `setPackage` does not reach it — only explicit-component intents do (the CallStyle Answer uses one). The other action buttons still use package-only intents: por verificar on the watch before changing them (Decline is kept as is).
+
+26. **Call phrases ring only when "incoming"**: WhatsApp calls arrive as Social; `CallPhrases` matches per-language phrases (accent/case-insensitive, whole words). Never add a bare "videollamada"/"llamada de voz" (chat text) and keep the missed/ended exclusions.

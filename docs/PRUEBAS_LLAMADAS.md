@@ -71,3 +71,23 @@ Qué cambió:
 
    Con estos datos decidimos si quitamos Telecom.
 8. **Rechazar** sigue igual que antes, con Telecom ON y OFF.
+
+## C4. Tabla de frases de llamada (`CallPhrases`)
+
+Qué cambió:
+
+- Las llamadas que ANCS no marca como «llamada» (WhatsApp llega como Social) se reconocen por frases en español e inglés, sin importar mayúsculas ni acentos.
+- Las llamadas **perdidas o finalizadas** ya no hacen sonar el reloj: antes, «Missed voice call» podía abrir la pantalla de llamada.
+- Si una notificación de una app de llamadas (WhatsApp, Teléfono, FaceTime) menciona una llamada pero no se reconoce, el log guarda una línea `call: not a ringing call (…): "…"` con el texto normalizado (60 caracteres como máximo). Los mensajes normales de chat no se registran.
+
+Con el iPhone en español:
+
+1. Llamada de voz por WhatsApp: se abre la pantalla de llamada. Si no se abre, copia la línea `call: not a ringing call` del log y la añadimos a la tabla.
+2. Videollamada por WhatsApp: igual que el paso 1.
+3. Llamada perdida de WhatsApp («Llamada de voz perdida»): llega como notificación normal, **sin** pantalla de llamada.
+4. Un chat de WhatsApp que diga «¿hacemos una videollamada?»: notificación normal, sin pantalla de llamada.
+5. Llamada normal y FaceTime: igual que antes (llegan con la categoría de llamada).
+6. Repite los pasos 1 y 3 con el iPhone en inglés.
+7. Llamada grupal de WhatsApp: anota qué pasa. Si no suena, revisa la línea `call: not a ringing call` del log.
+
+Por verificar: las frases exactas de WhatsApp y FaceTime en iOS 26 en español. La tabla está en `ancs/CallPhrases.kt`.
