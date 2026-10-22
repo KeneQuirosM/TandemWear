@@ -11,6 +11,7 @@ import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import app.tandemwear.watch.ams.AmsProtocol
+import app.tandemwear.watch.battery.BatteryProtocol
 import app.tandemwear.watch.ams.RemoteCommand
 import app.tandemwear.watch.ble.GattOperationQueue.OpKey
 import app.tandemwear.watch.diag.DiagnosticsLog
@@ -78,6 +79,14 @@ class BleConnectionManager(
 
         private val GAP_SERVICE_UUID: UUID = UUID.fromString("00001800-0000-1000-8000-00805f9b34fb")
         private val GAP_DEVICE_NAME_UUID: UUID = UUID.fromString("00002A00-0000-1000-8000-00805f9b34fb")
+
+        /** Names for the "service UUIDs" diagnostics line. */
+        private val SERVICE_NAMES: Map<UUID, String> = mapOf(
+            AncsConstants.ANCS_SERVICE_UUID to "ANCS",
+            AncsConstants.AMS_SERVICE_UUID to "AMS",
+            BatteryProtocol.SERVICE_UUID to "Battery",
+            GAP_SERVICE_UUID to "GAP"
+        )
     }
 
     private val bleDispatcher = Dispatchers.Default.limitedParallelism(1)
@@ -102,6 +111,14 @@ class BleConnectionManager(
             ancsRequestsPending = { ancsRequestsPending() },
             lastAncsActivityMs = { lastAncsActivityMs },
             emit = { packet -> if (!_amsEvents.tryEmit(packet)) Log.e(TAG, "AMS event dropped: buffer full") }
+        )
+    }
+    /** Phase 5.1: logs whether the iPhone's Battery Level can be read. Isolated like AMS. */
+    private val batteryProbe: BatteryProbe by lazy {
+        BatteryProbe(
+            scope, operations,
+            ancsRequestsPending = { ancsRequestsPending() },
+            lastAncsActivityMs = { lastAncsActivityMs }
         )
     }
     private val adapter = (context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter
@@ -247,6 +264,7 @@ class BleConnectionManager(
                 val ok = status == BluetoothGatt.GATT_SUCCESS
                 operations.onComplete(OpKey.ReadCharacteristic(characteristic.uuid), ok)
                 if (ok && characteristic.uuid == AmsProtocol.ENTITY_ATTRIBUTE_UUID) amsClient.onEntityAttributeRead(value)
+                if (ok && characteristic.uuid == BatteryProtocol.LEVEL_UUID) batteryProbe.onLevelRead(value)
                 if (ok) onCharacteristicRead(characteristic.uuid, value)
             }
         },
@@ -384,6 +402,7 @@ class BleConnectionManager(
             "gatt: ${g.services.size} services, ANCS=${ancsService != null} " +
                 "AMS=${g.getService(AncsConstants.AMS_SERVICE_UUID) != null}"
         )
+        DiagnosticsLog.log("gatt: service UUIDs [${BatteryProtocol.describeServices(g.services.map { it.uuid }, SERVICE_NAMES)}]")
 
         if (ancsService == null) {
             if (g.device.bondState != BluetoothDevice.BOND_BONDED) {
@@ -480,6 +499,8 @@ class BleConnectionManager(
             readGapDeviceName(g)
             // Music (Phase 3): starts later, only when ANCS is idle; its failures stay inside AmsClient
             amsClient.onAncsSessionActive(g, currentSessionId)
+            // Battery (Phase 5.1): one logged read, after AMS, same isolation
+            batteryProbe.onAncsSessionActive(g)
         } finally {
             isSubscribing = false
         }
@@ -684,6 +705,7 @@ class BleConnectionManager(
 
     private fun clearSession() {
         amsClient.onSessionEnded()
+        batteryProbe.onSessionEnded()
         if (linkUp) recordLinkStats()
         linkUp = false
         operations.clear()
