@@ -32,7 +32,10 @@
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:taskAffinity="">
+            <!-- singleTask: a launch from the Tile (music card → player) reaches onNewIntent
+                 even when the app is already open in the background -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
