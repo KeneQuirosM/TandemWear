@@ -161,6 +161,8 @@
     <string name="player_next">Next</string>
     <string name="player_volume_down">Volume down</string>
     <string name="player_volume_up">Volume up</string>
+    <string name="player_more_below">More below</string>
+    <string name="player_volume_short" translatable="false">%1$d%%</string>
     <string name="player_volume_percent">Volume %1$d%%</string>
     <string name="player_progress_description">%1$s of %2$s</string>
     <string name="player_state_playing">Playing</string>

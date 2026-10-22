@@ -157,6 +157,7 @@
     <string name="player_next">Siguiente</string>
     <string name="player_volume_down">Bajar volumen</string>
     <string name="player_volume_up">Subir volumen</string>
+    <string name="player_more_below">Hay más abajo</string>
     <string name="player_volume_percent">Volumen %1$d%%</string>
     <string name="player_progress_description">%1$s de %2$s</string>
     <string name="player_state_playing">Sonando</string>

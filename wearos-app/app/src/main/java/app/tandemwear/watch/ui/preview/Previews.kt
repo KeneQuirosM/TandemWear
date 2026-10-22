@@ -108,3 +108,8 @@ private fun PlayerNothingPlayingPreview() = Frame { PlayerContent(PlayerModel.No
 @Preview(device = DEVICE, showSystemUi = true, fontScale = 1.3f)
 @Composable
 private fun PlayerLargeFontPreview() = Frame { PlayerContent(samplePlaying.copy(isPlaying = false), onCommand = {}) }
+
+/** Small round (192 dp): the player scrolls and shows the "more below" chevron. */
+@Preview(device = "id:wearos_small_round", showSystemUi = true)
+@Composable
+private fun PlayerSmallRoundPreview() = Frame { PlayerContent(samplePlaying, onCommand = {}) }
