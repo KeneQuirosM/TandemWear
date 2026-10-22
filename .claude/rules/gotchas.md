@@ -34,7 +34,7 @@
 
 17. **ANCS is visible before bonding but not usable**: on SDK 36 / iOS 26 discovery shows ANCS and AMS with `bond=NONE`, yet the characteristics "require authorization". Bond before subscribing.
 
-18. **Two bonds for one iPhone**: its public address (`B8:45:EB…`, Apple OUI) showed up as a separate `DUAL`, `BONDED` device before TandemWear's LE bond (`7F:68:…`). Probably a classic (BR/EDR) bond on the dual-mode watch. Always bond over the LE link; treat other bonded devices as PROBE, never as the paired iPhone.
+18. **Other bonded iPhones exist**: `B8:45:EB:2A:C6:84` (Apple OUI, `DUAL`, `BONDED`) turned out to be a *different* iPhone known to the watch since May, not the user's (`…84:D5`). Always bond over the LE link; treat other bonded devices as PROBE, never as the paired iPhone.
 
 19. **The stored bond address can look like an RPA**: Android keeps an LE bond under the address used when bonding (pseudo address) and keeps reporting later, resolved RPAs with it. `7F:68:…` (top bits `01`) is expected; don't "fix" it by matching on the public address.
 
@@ -51,3 +51,5 @@
 25. **`NotificationActionReceiver` has no intent-filter**: a broadcast with only `setPackage` never reaches it. Always build action intents with `NotificationActionReceiver.intent(...)` (explicit component).
 
 26. **Call phrases ring only when "incoming"**: WhatsApp calls arrive as Social; `CallPhrases` matches per-language phrases (accent/case-insensitive, whole words). Both languages ring only on "incoming"/"calling" phrases: never add a bare "videollamada", "llamada de voz", "video call", "voice call", "ringing" or the ☎ emoji (chat text), and keep the missed/ended exclusions. Unrecognised call-app texts are logged (`call: not a ringing call`) to grow the table.
+
+27. **Other apps' connection attempts show up in `InboundLinkMonitor`**: the `inbound: link down B8:45:EB:2A:C6:84` lines of the 20/21-10 night were the 30 s GATT connect timeouts (`status=147`) of `com.mergecorp.merge`, retrying every ~2 min, and started ~1 s after each of our links came up. Check `dumpsys bluetooth_manager` (`clientConnect(<package>)`) before reading a link-down as a real link, and run tests without other iPhone/ANCS apps installed.

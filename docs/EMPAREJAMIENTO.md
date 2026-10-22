@@ -82,7 +82,7 @@ Otras situaciones:
 
 ## (3) Los enlaces de `B8:45:EB:2A:C6:84`
 
-- El prefijo `B8:45:EB` está registrado a **Apple** ([maclookup.app](https://maclookup.app/macaddress/b845eb)). Es la **dirección pública de tu iPhone**: la de Bluetooth clásico, que en los iPhone también es su identidad.
+- El prefijo `B8:45:EB` está registrado a **Apple** ([maclookup.app](https://maclookup.app/macaddress/b845eb)). **Corrección (22-10):** no es tu iPhone sino **otro iPhone** que el reloj conocía desde mayo. Tu iPhone es `…84:D5`. Ver «Reevaluación con el volcado del 21-10» más abajo.
 - En la prueba del 21-10 aparece como `type=DUAL bond=BONDED` **antes** de nuestro emparejamiento. Es decir, el reloj ya tenía un bond con el iPhone por esa dirección, distinto del bond LE (`7F:68:…`) que creó TandemWear.
 - Origen probable, **por verificar**: un emparejamiento por Bluetooth clásico. O bien iOS, al tocar el reloj (dispositivo dual) en Ajustes, emparejó también por clásico en la primera prueba, o bien hubo un emparejamiento anterior desde los ajustes de Bluetooth del reloj. El enlace que se cerró a las 19:46 en el primer TW Probe era ese clásico.
 - **Impacto:** para ANCS, ninguno. TandemWear lo trata como `PROBE` (otro dispositivo) y no lo usa. Pero son dos bonds para el mismo iPhone, y conviene saber si iOS los crea siempre.
@@ -254,14 +254,47 @@ Con unos días de uso normal, este contador dice si la hipótesis A se sostiene:
 
 Mientras tanto, B5 solo **muestra** el estado «Conectado al iPhone, sin notificaciones», sin cambiar la lógica de reconexión.
 
-### Datos del volcado de Bluetooth del 21-10 (para B3 y B4; pistas, no conclusiones)
+### Reevaluación con el volcado del 21-10 (dos iPhones y la app Merge)
 
-Fuente: `dumpsys bluetooth_manager` a las 19:17, con el reloj puesto. El historial del volcado empieza el 20-10 a las 20:47.
+Fuentes: `dumpsys bluetooth_manager` del 21-10 a las 19:17 (historial desde el 20-10 a las 10:35) y el log de TandemWear de la noche (`noche.txt`).
 
-- **Enlace clásico (BR/EDR) al iPhone.** Solo hay **7 cortes clásicos** en todo el historial; 6 con `reason=19` (0x13, *Remote User Terminated*: los cerró el iPhone) y 1 con `reason=8` (*supervision timeout*: fuera de alcance o radio dormida). **No veo cortes cada ~2 min** en este volcado; puede que estén en otro registro o fuera del historial. Si los ves en otra parte, pásame esa sección.
-  - Último corte: 18:48:33. El iPhone cerró a la vez el enlace LE y el clásico. El clásico volvió a las 18:49:08, **iniciado por el iPhone**, y sigue conectado (HFP cliente `Connected`) hasta el volcado.
-- **Cortes de LE** (lo que usa ANCS): casi todos `reason=8` entre las 13:23 y las 17:03 (fuera de alcance o sueño), y algunos `reason=19` (el iPhone corta).
-- **Cada reemparejamiento dejó un vínculo nuevo.** En la base del reloj hay 9 entradas; seis son direcciones LE del iPhone, y quedan **dos vínculos «iPhone»** con direcciones públicas distintas (`…C6:84`, la de siempre, y `…84:D5`, desde las 18:32). Una dirección pública de iPhone no cambia: **¿son dos iPhones?** Hay que aclararlo antes de B3/B4, porque `PairedPhoneStore` guarda solo uno.
-- **Al vincular por LE, Android abre también el clásico** (18:33:01, «Consolidate 84:d5 ⇔ 68:2b», SDP, RFCOMM) y el sistema activa HFP cliente con política 100. Ese enlace clásico existe aunque TandemWear no lo pida. Cuenta como «enlace con el iPhone» en los datos de B1, pero no lleva ANCS.
+**Quién es quién** (confirmado por ti el 22-10):
 
-Qué cambia para la decisión: B4 («cortar enlaces sin ANCS») no debe tocar el enlace clásico/HFP. No es nuestro y cortarlo no ayuda a ANCS. Los contadores de B1 cuentan solo enlaces GATT de TandemWear, así que esto no los altera.
+| Dirección pública | Direcciones LE que vio el reloj | Qué es |
+|---|---|---|
+| `…84:D5` | `…94:D2`, `…BB:02`, `…72:EB`, `…71:D0`, `…68:2B` (cada reemparejamiento dejó una) | **Tu iPhone** |
+| `B8:45:EB:2A:C6:84` | `…8A:56` | **Otro iPhone**; el reloj lo conocía desde el 18-05 |
+
+**1. La noche del 20 al 21-10 (02:00–05:30) fue toda con tu iPhone.** En el volcado no hay ningún enlace con `…C6:84` en esa franja. Los 13 enlaces de TandemWear fueron con `…BB:02` (tu iPhone), y el iPhone cortó cada uno a los ~30 s (`reason=19`). El otro iPhone no explica esa noche.
+
+**2. Las líneas `inbound: link down B8:45:EB:2A:C6:84` del log de TandemWear no son enlaces reales.** Coinciden al segundo (19 de 19) con los intentos fallidos de la app **`com.mergecorp.merge`**, que intenta conectarse por GATT al otro iPhone. Cada intento dura 30 s y acaba en `status=147`, tiempo agotado. `InboundLinkMonitor` registra también los intentos de conexión de otras apps.
+
+**3. Los cortes «cada ~2 min» son el bucle de reintentos de Merge**, no cortes del enlace clásico de tu iPhone:
+- 284 intentos al otro iPhone entre el 20-10 a las 10:37 y el 21-10 a las 07:19;
+- mediana de 134 s entre intentos (p10 120 s, p90 764 s);
+- de madrugada, solo 2–6 por hora (Doze);
+- se acabaron cuando Google Play Services borró ese vínculo, el 21-10 a las 07:21:51.
+
+**4. Correlación que impide decidir B4 con esa noche.** Cada intento de Merge empezó **a menos de ~1,5 s de que subiera nuestro enlace** con tu iPhone. Por ejemplo: 02:23:48 / 02:23:48; 02:31:29 / 02:31:29; 02:55:09 / 02:55:09; 03:38:35 / 03:38:35. Y terminó 1–3 s antes de que tu iPhone cortara el nuestro.
+- Probablemente Merge reacciona a `ACTION_ACL_CONNECTED` de cualquier iPhone.
+- No podemos saber si sus intentos (el controlador intentando conectar con el otro iPhone durante 30 s) influyeron en que tu iPhone no publicara ANCS y cortara a los 30 s, o si solo coinciden porque ambos duran 30 s.
+- La hipótesis A («iOS solo da ANCS en enlaces que inicia él») sigue en pie, pero **sin confirmar**: esa noche hubo un factor de confusión.
+
+**5. De 07:21 a 18:30 del 21-10 TandemWear estuvo emparejado con el OTRO iPhone.**
+- A las 07:21 el reloj anunciaba y el otro iPhone se conectó; TandemWear lo adjuntó y se emparejaron por LE (`…8A:56`).
+- El emparejamiento se confirmó **en el reloj** a las 07:22:18 (`setPairingConfirmation(true)` desde Ajustes del reloj), y también tuvo que aceptarse en ese iPhone.
+- Los datos de ese tramo, incluidos los cortes `reason=8` de las 13:23–17:03 y los contadores de B1, son de ese iPhone: **no sirven para B3/B4**.
+
+**6. Desde las 18:33, con tu iPhone (`…68:2B` ⇒ `…84:D5`), solo hay unos 45 min en el volcado:**
+- enlace de 18:32:51 a 18:48:33, que tu iPhone cortó a la vez en LE y en clásico (`0x13`);
+- el iPhone volvió a conectar a las 18:48:35 (iniciado por él) y cortó a los 14 s;
+- reconexión a las 18:49:04, estable hasta el volcado (19:17), con el enlace clásico/HFP iniciado por el iPhone a las 18:49:08.
+
+Es muy poco para decidir.
+
+**Qué falta para decidir B3/B4** (solo con datos posteriores a las 18:33):
+1. Olvidar el vínculo viejo (`…C6:84`) en el reloj.
+2. **Desinstalar o desactivar Merge**: reintenta cada ~2 min, compite por la radio y quizá por ANCS (gotcha 15).
+3. Varios días de uso normal.
+4. Exportar `files/diag/tandemwear.log*` (contadores de B1: quién inicia cada enlace y si trae ANCS) y un `dumpsys bluetooth_manager` al final.
+5. Mientras tanto, B4 («cortar enlaces sin ANCS») no debe tocar el enlace clásico/HFP: no es nuestro y no ayuda a ANCS.
