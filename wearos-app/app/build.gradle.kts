@@ -83,6 +83,8 @@ dependencies {
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
+    // Room for test-only databases (version-1 schema in the migration test)
+    kspTest("androidx.room:room-compiler:2.6.1")
 
     // Ambient mode (AmbientLifecycleObserver)
     implementation("androidx.wear:wear:1.4.0")

@@ -66,3 +66,11 @@ Saltarse el No molestar del sistema requiere dos cosas:
 - que el usuario conceda el acceso a No molestar. En Wear OS quizá solo se pueda con `adb shell cmd notification allow_dnd app.tandemwear.watch`.
 
 Nada del producto depende de esto. Si lo quieres, se añade el canal VIP en un commit aparte; **por verificar** que el Galaxy Watch 4 lo respete.
+
+## 5.4a Base de datos versión 2 (llamadas) sin perder el historial
+
+Qué hace: la base de datos pasa a la versión 2 con la tabla `calls`. La migración 1→2 conserva tus notificaciones de Recientes y la lista de apps. Un test la comprueba con una base real de la versión 1. Antes, cualquier cambio de versión vaciaba el historial.
+
+1. **Antes de instalar el APK nuevo**, anota qué hay en Recientes.
+2. Instala por encima (`adb install -r …`), sin desinstalar.
+3. Recientes muestra lo mismo que antes, y Ajustes › Apps conserva su lista.
