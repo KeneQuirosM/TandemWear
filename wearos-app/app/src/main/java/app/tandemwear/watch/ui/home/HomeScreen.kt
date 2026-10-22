@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bluetooth
+import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Refresh
@@ -12,6 +13,9 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,6 +26,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.FilledTonalButton
@@ -54,6 +59,12 @@ fun HomeScreen(
     val status by viewModel.homeStatus.collectAsState()
     val recent by viewModel.recent.collectAsState()
     val music by viewModel.music.collectAsState()
+    // Re-checked on every resume: the user may come back from the system screen
+    var callScreenBlocked by remember { mutableStateOf(false) }
+    LifecycleResumeEffect(Unit) {
+        callScreenBlocked = !viewModel.canShowCallScreen()
+        onPauseOrDispose { }
+    }
     HomeContent(
         status = status,
         recent = recent,
@@ -64,7 +75,9 @@ fun HomeScreen(
         onPair = onPair,
         onAbout = onAbout,
         onSettings = onSettings,
-        onOpenNotification = onOpenNotification
+        onOpenNotification = onOpenNotification,
+        callScreenBlocked = callScreenBlocked,
+        onAllowCallScreen = { viewModel.openCallScreenSettings() }
     )
 }
 
@@ -80,7 +93,9 @@ fun HomeContent(
     onSettings: () -> Unit,
     onOpenNotification: (Long) -> Unit,
     music: MusicSession = MusicSession.NONE,
-    onOpenPlayer: () -> Unit = {}
+    onOpenPlayer: () -> Unit = {},
+    callScreenBlocked: Boolean = false,
+    onAllowCallScreen: () -> Unit = {}
 ) {
     TandemList {
         item { StatusHeader(status) }
@@ -92,6 +107,11 @@ fun HomeContent(
                 onReconnect = onReconnect,
                 onPair = onPair
             )
+        }
+
+        // Without the full-screen permission calls only show as a notification
+        if (callScreenBlocked) {
+            item { CallScreenWarning(onAllowCallScreen) }
         }
 
         // Music card only while an app is the iPhone's now-playing app
@@ -244,5 +264,17 @@ private fun PrimaryAction(
         },
         icon = { icon() },
         label = { Text(text, fontSize = TandemType.label) }
+    )
+}
+
+/** Calls can't open the full-screen call screen: one tap to the system permission. */
+@Composable
+private fun CallScreenWarning(onAllow: () -> Unit) {
+    FilledTonalButton(
+        onClick = onAllow,
+        modifier = Modifier.fillMaxWidth(),
+        icon = { Icon(Icons.Rounded.Call, contentDescription = null, tint = TandemColors.stateAttention) },
+        label = { Text(stringResource(R.string.call_screen_blocked_title), fontSize = TandemType.label) },
+        secondaryLabel = { Text(stringResource(R.string.call_screen_blocked_body), fontSize = TandemType.caption) }
     )
 }

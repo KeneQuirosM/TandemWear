@@ -12,6 +12,7 @@ import android.content.Context
 import android.content.IntentFilter
 import android.content.Intent
 import android.os.IBinder
+import android.os.SystemClock
 import android.os.Vibrator
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -25,6 +26,7 @@ import app.tandemwear.watch.ble.BleConnectionManager
 import app.tandemwear.watch.ble.InboundLinkMonitor
 import app.tandemwear.watch.ble.PairingPolicy
 import app.tandemwear.watch.ble.WatchAdvertiser
+import app.tandemwear.watch.data.CallDebugStore
 import app.tandemwear.watch.data.PairedPhoneStore
 import app.tandemwear.watch.data.history.HistoryEntry
 import app.tandemwear.watch.data.history.HistoryRepository
@@ -980,14 +982,16 @@ class AncsService : Service() {
         }
         activeCallUid = notification.uid
 
-        // 1. Report to Telecom framework — self-managed connection allows
-        //    our foreground service to launch activities while ringing
-        AncsConnectionService.reportIncomingCall(
-            this, notification.uid, callerName, appName
-        )
+        val callStartedAt = SystemClock.elapsedRealtime()
+        val sessionId = idRegistry.sessionId
 
-        // 2. Directly launch call activity — the Telecom self-managed connection
-        //    grants us the background activity start exception
+        // 1. Telecom (self-managed). Kept while we measure what it adds (debug toggle, logs)
+        if (CallDebugStore(this).useTelecom) {
+            AncsConnectionService.reportIncomingCall(this, notification.uid, callerName, appName, sessionId)
+        } else {
+            DiagnosticsLog.log("call: Telecom off (debug) — notification + screen only")
+        }
+
         val callIntent = Intent(this, IncomingCallActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                 Intent.FLAG_ACTIVITY_CLEAR_TOP or
@@ -996,16 +1000,10 @@ class AncsService : Service() {
             putExtra(IncomingCallActivity.EXTRA_CALLER_NAME, callerName)
             putExtra(IncomingCallActivity.EXTRA_NOTIFICATION_UID, notification.uid)
             putExtra(IncomingCallActivity.EXTRA_APP_NAME, appName)
-            putExtra(IncomingCallActivity.EXTRA_SESSION_ID, idRegistry.sessionId)
-        }
-        try {
-            startActivity(callIntent)
-            Log.i(TAG, "Started IncomingCallActivity directly for '$callerName'")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to start IncomingCallActivity: ${e.message}")
+            putExtra(IncomingCallActivity.EXTRA_SESSION_ID, sessionId)
         }
 
-        // 3. Post CallStyle notification as fallback
+        // 2. CallStyle notification with full-screen intent: the primary path
         val fullScreenPendingIntent = PendingIntent.getActivity(
             this, 0, callIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -1018,7 +1016,7 @@ class AncsService : Service() {
             Intent(this, NotificationActionReceiver::class.java).apply {
                 action = NotificationActionReceiver.ACTION_POSITIVE
                 putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_UID, notification.uid)
-                putExtra(NotificationActionReceiver.EXTRA_SESSION_ID, idRegistry.sessionId)
+                putExtra(NotificationActionReceiver.EXTRA_SESSION_ID, sessionId)
                 putExtra(NotificationActionReceiver.EXTRA_ANDROID_ID, NOTIFICATION_ID_CALL)
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -1051,6 +1049,35 @@ class AncsService : Service() {
             .build()
         notificationManager.notify(NOTIFICATION_ID_CALL, callNotification)
         Log.i(TAG, "Posted CallStyle notification for '$callerName'")
+
+        // 3. Direct start as fallback (Wear OS does not always honour full-screen intents)
+        val fullScreenAllowed = CallScreenAccess.canUseFullScreenIntent(this)
+        when (CallLaunchPolicy.initial(fullScreenAllowed)) {
+            CallLaunchPolicy.Start.DIRECT_NOW -> {
+                DiagnosticsLog.log("call: full-screen intent not allowed — direct start")
+                startCallScreen(callIntent)
+            }
+            CallLaunchPolicy.Start.FULL_SCREEN_THEN_CHECK -> scope.launch {
+                delay(CallLaunchPolicy.FULL_SCREEN_GRACE_MS)
+                val visible = IncomingCallActivity.isVisible
+                if (CallLaunchPolicy.needsFallback(activeCallUid == notification.uid, visible)) {
+                    DiagnosticsLog.log("call: no screen ${CallLaunchPolicy.FULL_SCREEN_GRACE_MS} ms after full-screen intent — direct start (fallback)")
+                    startCallScreen(callIntent)
+                } else if (visible) {
+                    val shownAfter = IncomingCallActivity.visibleSinceElapsed - callStartedAt
+                    DiagnosticsLog.log("call: screen shown by full-screen intent after $shownAfter ms")
+                }
+            }
+        }
+    }
+
+    private fun startCallScreen(callIntent: Intent) {
+        try {
+            startActivity(callIntent)
+            Log.i(TAG, "Started IncomingCallActivity directly")
+        } catch (e: Exception) {
+            DiagnosticsLog.log("call: direct start failed — ${e.javaClass.simpleName}: ${e.message}")
+        }
     }
 
 
@@ -1060,6 +1087,8 @@ class AncsService : Service() {
         if (uid == activeCallUid) {
             val what = if (actionId == AncsConstants.ACTION_POSITIVE) "answer" else "decline"
             DiagnosticsLog.log("call: $what uid=$uid session=${if (sessionId == NotificationIdRegistry.NO_SESSION) "none" else "bound"}")
+            // Answered from the watch: stop Telecom's ringing call (the audio stays on the iPhone)
+            if (actionId == AncsConstants.ACTION_POSITIVE) AncsConnectionService.endActiveCall()
         }
 
         val stale = sessionId != NotificationIdRegistry.NO_SESSION && !idRegistry.isCurrent(sessionId)

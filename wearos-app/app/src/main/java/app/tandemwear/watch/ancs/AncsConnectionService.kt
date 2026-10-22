@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.SystemClock
 import android.telecom.Connection
 import android.telecom.ConnectionRequest
 import android.telecom.ConnectionService
@@ -14,6 +15,7 @@ import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import android.util.Log
 import app.tandemwear.watch.R
+import app.tandemwear.watch.diag.DiagnosticsLog
 
 /**
  * ConnectionService that integrates ANCS incoming calls with Android's Telecom framework.
@@ -30,6 +32,11 @@ class AncsConnectionService : ConnectionService() {
         const val EXTRA_NOTIFICATION_UID = "notification_uid"
         const val EXTRA_CALLER_NAME = "caller_name"
         const val EXTRA_APP_NAME = "app_name"
+        const val EXTRA_SESSION_ID = "ancs_session_id"
+
+        /** elapsedRealtime of the last report, to log how long Telecom takes. */
+        @Volatile private var reportedAtElapsed = 0L
+        private fun sinceReport() = SystemClock.elapsedRealtime() - reportedAtElapsed
 
         // Track the active call connection so AncsService can update/end it
         var activeConnection: AncsCallConnection? = null
@@ -65,11 +72,14 @@ class AncsConnectionService : ConnectionService() {
             context: Context,
             notificationUid: Long,
             callerName: String,
-            appName: String
+            appName: String,
+            sessionId: Long
         ) {
             val handle = getPhoneAccountHandle(context)
+            reportedAtElapsed = SystemClock.elapsedRealtime()
             val extras = Bundle().apply {
                 putLong(EXTRA_NOTIFICATION_UID, notificationUid)
+                putLong(EXTRA_SESSION_ID, sessionId)
                 putString(EXTRA_CALLER_NAME, callerName)
                 putString(EXTRA_APP_NAME, appName)
             }
@@ -79,7 +89,7 @@ class AncsConnectionService : ConnectionService() {
                 telecomManager.addNewIncomingCall(handle, extras)
                 Log.i(TAG, "Reported incoming call to Telecom: '$callerName' uid=$notificationUid")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to report incoming call to Telecom: ${e.message}")
+                DiagnosticsLog.log("telecom: addNewIncomingCall failed — ${e.javaClass.simpleName}: ${e.message}")
             }
         }
 
@@ -101,16 +111,20 @@ class AncsConnectionService : ConnectionService() {
         val callerName = extras.getString(EXTRA_CALLER_NAME, getString(R.string.call_incoming))
         val appName = extras.getString(EXTRA_APP_NAME, getString(R.string.call_default_app))
 
+        val sessionId = extras.getLong(EXTRA_SESSION_ID, NotificationIdRegistry.NO_SESSION)
+
         Log.i(TAG, "onCreateIncomingConnection: caller='$callerName' uid=$uid app='$appName'")
+        DiagnosticsLog.log("telecom: connection created ${sinceReport()} ms after report")
 
         val connection = AncsCallConnection(
             notificationUid = uid,
             onAnswer = { answerUid ->
-                // Send ANCS positive action via AncsService
+                // Send ANCS positive action via AncsService, bound to the call's session
                 val intent = Intent(this, AncsService::class.java).apply {
                     action = AncsService.ACTION_PERFORM_NOTIFICATION_ACTION
                     putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_UID, answerUid)
                     putExtra(AncsService.EXTRA_ACTION_ID, app.tandemwear.watch.ble.AncsConstants.ACTION_POSITIVE)
+                    putExtra(NotificationActionReceiver.EXTRA_SESSION_ID, sessionId)
                 }
                 startService(intent)
                 activeConnection = null
@@ -142,7 +156,7 @@ class AncsConnectionService : ConnectionService() {
         connectionManagerPhoneAccount: PhoneAccountHandle?,
         request: ConnectionRequest?
     ) {
-        Log.e(TAG, "onCreateIncomingConnectionFailed — falling back to notification")
+        DiagnosticsLog.log("telecom: incoming connection refused ${sinceReport()} ms after report — notification + screen only")
         // If Telecom rejects our call, the CallStyle notification from
         // AncsService will still be posted as a fallback.
     }

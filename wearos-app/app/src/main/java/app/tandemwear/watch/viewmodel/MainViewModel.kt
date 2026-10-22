@@ -16,6 +16,7 @@ import androidx.lifecycle.viewModelScope
 import app.tandemwear.watch.ams.MusicSession
 import app.tandemwear.watch.ams.RemoteCommand
 import app.tandemwear.watch.ancs.AncsService
+import app.tandemwear.watch.ancs.CallScreenAccess
 import app.tandemwear.watch.ancs.NotificationActionReceiver
 import app.tandemwear.watch.data.history.HistoryEntry
 import app.tandemwear.watch.data.history.HistoryRepository
@@ -152,6 +153,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** True while an iPhone is paired and its bond still exists on the watch. */
     fun hasPairedIPhone(): Boolean = pairedPhoneStore.bondedPhone() != null
+
+    /** False when Android 14+ refuses this app's full-screen intents (call screen). */
+    fun canShowCallScreen(): Boolean = CallScreenAccess.canUseFullScreenIntent(getApplication())
+
+    fun openCallScreenSettings(): Boolean = CallScreenAccess.openSettings(getApplication())
 
     /** Opens the watch's Bluetooth settings; false if the system has no such screen. */
     fun openBluetoothSettings(): Boolean {

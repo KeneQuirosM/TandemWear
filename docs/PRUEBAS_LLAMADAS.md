@@ -29,3 +29,45 @@ Qué cambió: el botón **Contestar** de la notificación de llamada (CallStyle)
 6. Durante una llamada con Spotify sonando, la música no se ve afectada.
 
 **Nota:** el receptor de las acciones (`NotificationActionReceiver`) no tiene intent-filter. Por eso las acciones que lo llaman solo con el paquete (Rechazar de la llamada, y los botones de las notificaciones normales) probablemente no le llegan. El nuevo Contestar lo llama de forma explícita. No toqué Rechazar, como pediste; si la prueba 4 lo confirma, lo corrijo en un commit aparte.
+
+## C3. Pantalla completa como camino principal; apertura directa como respaldo; medición de Telecom
+
+Qué cambió:
+
+- La pantalla de llamada la abre la notificación CallStyle con «pantalla completa».
+- Si en 1,5 s no se ve, el reloj la abre directamente (respaldo). Si Android no da el permiso de pantalla completa, la abre directamente desde el principio.
+- Telecom (el sistema telefónico del reloj) sigue activo, pero ahora:
+  - cuelga bien al contestar;
+  - ya no ofrece «retener»;
+  - registra cada paso en el log.
+- En TW Probe ANCS hay un botón **Calls via Telecom: ON/OFF** para medir sin Telecom.
+
+1. **Permiso.** Comprueba si lo tienes:
+
+   ```bash
+   adb shell appops get app.tandemwear.watch USE_FULL_SCREEN_INTENT
+   ```
+
+   - Si sale `deny`, en Inicio aparece «Llamadas: permite pantalla completa». Tócalo: se abre la pantalla del sistema (o los ajustes de la app). Permítelo y vuelve: el aviso desaparece.
+   - Si en el reloj no hay interruptor, usa `adb shell appops set app.tandemwear.watch USE_FULL_SCREEN_INTENT allow`.
+2. **Con permiso, pantalla apagada.** Llamada entrante: se abre la pantalla de llamada. En el log aparece `call: screen shown by full-screen intent after N ms`. Anota N.
+3. **Con permiso, usando el reloj** (por ejemplo, en la esfera o en otra app). Llamada entrante: busca en el log una de estas dos líneas:
+   - `screen shown by full-screen intent`: la abrió la notificación;
+   - `no screen 1500 ms after full-screen intent — direct start (fallback)`: la abrió el respaldo.
+
+   Anota cuál aparece.
+4. **Sin permiso** (`appops set … deny`). Llamada entrante: aparece `call: full-screen intent not allowed — direct start` y la pantalla se abre igual.
+5. **Contestar o rechazar antes de 1,5 s** desde la notificación: después no debe abrirse ninguna pantalla.
+6. **Telecom ON** (por defecto). En una llamada, anota:
+   - `telecom: connection created N ms after report`;
+   - si aparece `telecom: onShowIncomingCallUi`;
+   - si ves `telecom: incoming connection refused`.
+
+   Contesta desde el reloj: después de `call: answer …`, el reloj no se queda «en llamada» (no hay icono de llamada en curso ni pantalla de llamada activa del sistema).
+7. **Telecom OFF.** Abre TW Probe ANCS, pon **Calls via Telecom: OFF** y repite los pasos 2 y 3, con la pantalla apagada y también mientras carga el reloj. Aparece `call: Telecom off (debug)`. Compara:
+   - ¿se abre la pantalla igual de rápido?
+   - ¿se abre sobre la pantalla de carga?
+   - ¿vibra?
+
+   Con estos datos decidimos si quitamos Telecom.
+8. **Rechazar** sigue igual que antes, con Telecom ON y OFF.

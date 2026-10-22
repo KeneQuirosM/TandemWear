@@ -127,6 +127,8 @@
 
     <!-- Tile y complicación (2.6, 2.7) -->
     <string name="tile_label">Estado de TandemWear</string>
+    <string name="call_screen_blocked_title">Llamadas: permite pantalla completa</string>
+    <string name="call_screen_blocked_body">Toca para que las llamadas abran su pantalla</string>
     <string name="complication_now_playing_label">Ahora suena (iPhone)</string>
     <string name="complication_label">Notificaciones del iPhone</string>
     <string name="tile_open">Abrir</string>

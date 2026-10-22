@@ -5,6 +5,7 @@ import android.telecom.Connection
 import android.telecom.DisconnectCause
 import android.telecom.TelecomManager
 import android.util.Log
+import app.tandemwear.watch.diag.DiagnosticsLog
 
 /**
  * Represents a single incoming call from ANCS within the Telecom framework.
@@ -26,14 +27,21 @@ class AncsCallConnection(
 
     init {
         connectionProperties = PROPERTY_SELF_MANAGED
-        connectionCapabilities = CAPABILITY_SUPPORT_HOLD or CAPABILITY_HOLD
+        // No HOLD: the call's audio is on the iPhone, nothing to hold on the watch
+        connectionCapabilities = 0
+    }
+
+    override fun onShowIncomingCallUi() {
+        // Telecom says we may show our ringing UI: the CallStyle notification already does
+        DiagnosticsLog.log("telecom: onShowIncomingCallUi uid=$notificationUid")
     }
 
     override fun onAnswer() {
         Log.i(TAG, "Call answered via system UI, uid=$notificationUid")
-        setActive()
+        DiagnosticsLog.log("telecom: answered from the system UI uid=$notificationUid")
         onAnswer(notificationUid)
-        // Disconnect after a brief moment — we can't actually hold the audio call
+        // The call goes on on the iPhone: end ours properly instead of leaving it active
+        setDisconnected(DisconnectCause(DisconnectCause.LOCAL))
         destroy()
     }
 

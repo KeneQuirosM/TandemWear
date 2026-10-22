@@ -13,6 +13,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import app.tandemwear.watch.ancs.AncsService
+import app.tandemwear.watch.data.CallDebugStore
 import app.tandemwear.watch.data.PairedPhoneStore
 import app.tandemwear.watch.diag.DiagnosticsLog
 import kotlinx.coroutines.CoroutineScope
@@ -81,6 +82,16 @@ class AncsProbeActivity : Activity() {
                     text = "Reconnect via: $next"
                     DiagnosticsLog.log("probe: reconnect strategy = $next")
                     sendToService(AncsService.ACTION_START)
+                }
+            })
+            addView(Button(this@AncsProbeActivity).apply {
+                // Measure what the watch's Telecom adds to incoming calls before removing it
+                val calls = CallDebugStore(this@AncsProbeActivity)
+                text = "Calls via Telecom: ${if (calls.useTelecom) "ON" else "OFF"}"
+                setOnClickListener {
+                    calls.useTelecom = !calls.useTelecom
+                    text = "Calls via Telecom: ${if (calls.useTelecom) "ON" else "OFF"}"
+                    DiagnosticsLog.log("probe: calls via Telecom = ${calls.useTelecom}")
                 }
             })
             addView(Button(this@AncsProbeActivity).apply {

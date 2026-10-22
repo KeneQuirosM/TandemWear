@@ -132,6 +132,8 @@
 
     <!-- Tile and complication (2.6, 2.7) -->
     <string name="tile_label">TandemWear status</string>
+    <string name="call_screen_blocked_title">Calls: allow full screen</string>
+    <string name="call_screen_blocked_body">Tap so calls open their screen</string>
     <string name="complication_now_playing_label">Now playing (iPhone)</string>
     <string name="complication_label">iPhone notifications</string>
     <string name="tile_open">Open</string>

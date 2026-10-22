@@ -64,6 +64,13 @@ class IncomingCallActivity : ComponentActivity() {
         private const val AUTO_DISMISS_TIMEOUT_MS = 45_000L
         /** After call is answered on iPhone, auto-dismiss after this many ms */
         private const val ACTIVE_CALL_DISMISS_MS = 5_000L
+
+        /** The call screen is started and on screen (read by the direct-start fallback). */
+        @Volatile var isVisible = false
+            private set
+        /** elapsedRealtime when the screen last became visible (measures the full-screen path). */
+        @Volatile var visibleSinceElapsed = 0L
+            private set
     }
 
     private var sessionId: Long = NotificationIdRegistry.NO_SESSION
@@ -148,6 +155,17 @@ class IncomingCallActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        visibleSinceElapsed = android.os.SystemClock.elapsedRealtime()
+        isVisible = true
+    }
+
+    override fun onStop() {
+        isVisible = false
+        super.onStop()
     }
 
     override fun onDestroy() {
