@@ -130,11 +130,12 @@ class AncsConnectionService : ConnectionService() {
                 activeConnection = null
             },
             onReject = { rejectUid ->
-                // Send ANCS negative action via AncsService
+                // Send ANCS negative action via AncsService, bound to the call's session
                 val intent = Intent(this, AncsService::class.java).apply {
                     action = AncsService.ACTION_PERFORM_NOTIFICATION_ACTION
                     putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_UID, rejectUid)
                     putExtra(AncsService.EXTRA_ACTION_ID, app.tandemwear.watch.ble.AncsConstants.ACTION_NEGATIVE)
+                    putExtra(NotificationActionReceiver.EXTRA_SESSION_ID, sessionId)
                 }
                 startService(intent)
                 activeConnection = null

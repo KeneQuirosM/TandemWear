@@ -351,7 +351,7 @@ class AncsService : Service() {
             ACTION_PERFORM_NOTIFICATION_ACTION -> {
                 val uid = intent.getLongExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_UID, -1)
                 val actionId = intent.getIntExtra(EXTRA_ACTION_ID, -1)
-                // 0 = sent by the call UI, which is torn down when a session ends
+                // 0 = no session given: sent as is (call actions now always carry theirs)
                 val sessionId = intent.getLongExtra(NotificationActionReceiver.EXTRA_SESSION_ID, 0L)
                 val androidId = intent.getIntExtra(NotificationActionReceiver.EXTRA_ANDROID_ID, -1)
                 if (uid != -1L && actionId != -1) {
@@ -1004,10 +1004,14 @@ class AncsService : Service() {
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        // Decline: same action and extras as the call screen's Decline (uid only, no session)
+        // Decline, bound to this session like Answer: a UID renumbered after a reconnect
+        // is never declined on the iPhone
         val declinePendingIntent = PendingIntent.getBroadcast(
             this, 2,
-            NotificationActionReceiver.intent(this, NotificationActionReceiver.ACTION_NEGATIVE, notification.uid),
+            NotificationActionReceiver.intent(this, NotificationActionReceiver.ACTION_NEGATIVE, notification.uid).apply {
+                putExtra(NotificationActionReceiver.EXTRA_SESSION_ID, sessionId)
+                putExtra(NotificationActionReceiver.EXTRA_ANDROID_ID, NOTIFICATION_ID_CALL)
+            },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val caller = androidx.core.app.Person.Builder()

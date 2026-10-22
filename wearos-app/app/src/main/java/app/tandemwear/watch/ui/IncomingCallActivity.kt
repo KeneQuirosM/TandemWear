@@ -148,7 +148,7 @@ class IncomingCallActivity : ComponentActivity() {
                             finish()
                         },
                         onDecline = {
-                            performAction(AncsConstants.ACTION_NEGATIVE)
+                            performAction(AncsConstants.ACTION_NEGATIVE, sessionId)
                             finish()
                         }
                     )
@@ -176,8 +176,8 @@ class IncomingCallActivity : ComponentActivity() {
         } catch (_: IllegalArgumentException) { }
     }
 
-    /** Decline keeps sending without a session (its behaviour is verified on the watch). */
-    private fun performAction(actionId: Int, session: Long = NotificationIdRegistry.NO_SESSION) {
+    /** Answer and Decline carry the call's session: a stale UID is dismissed locally only. */
+    private fun performAction(actionId: Int, session: Long) {
         if (notificationUid == -1L) return
         val intent = Intent(this, AncsService::class.java).apply {
             action = AncsService.ACTION_PERFORM_NOTIFICATION_ACTION

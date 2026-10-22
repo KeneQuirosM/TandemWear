@@ -126,3 +126,17 @@ Con el iPhone en **inglés**:
 3. Un chat de WhatsApp que diga «video call later?»: notificación normal, sin pantalla de llamada.
 4. Llamada perdida («Missed voice call»): notificación normal.
 5. Llamada normal y FaceTime: igual que antes, porque llegan con la categoría de llamada.
+
+## C8. Rechazar ligado a la sesión ANCS
+
+Qué cambió: **Rechazar** (en la pantalla de llamada, en la notificación y en Telecom) lleva la sesión ANCS de la llamada, igual que Contestar. Si la sesión terminó (el iPhone se reconectó y renumeró los UID), solo se cierra en el reloj y nunca se rechaza otra notificación del iPhone que tenga el mismo número. El Rechazar de la notificación también la quita al instante.
+
+1. Rechaza una llamada desde la pantalla: el iPhone la rechaza y en el log aparece `call: decline uid=… session=bound`.
+2. Rechaza desde la notificación (con la pantalla apagada): igual que el paso 1, y la notificación desaparece al tocar.
+3. **Sesión caducada:**
+   1. empieza una llamada;
+   2. apaga el Bluetooth del iPhone mientras suena y vuelve a encenderlo;
+   3. si la pantalla o la notificación siguen visibles, toca **Rechazar**.
+
+   Debe aparecer `ancs: action on a notification from an ended session — dismissed locally only`, y en el iPhone no debe borrarse ni rechazarse ninguna otra notificación.
+4. Con **Calls via Telecom: ON**, rechazar desde la interfaz del sistema (si aparece): igual que el paso 1.
