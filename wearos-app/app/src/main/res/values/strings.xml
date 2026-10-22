@@ -132,6 +132,7 @@
 
     <!-- Tile and complication (2.6, 2.7) -->
     <string name="tile_label">TandemWear status</string>
+    <string name="complication_now_playing_label">Now playing (iPhone)</string>
     <string name="complication_label">iPhone notifications</string>
     <string name="tile_open">Open</string>
     <string name="tile_connected">Connected</string>

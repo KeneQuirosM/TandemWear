@@ -9,6 +9,7 @@ import androidx.wear.tiles.TileService
 import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
 import app.tandemwear.watch.ams.RemoteCommand
 import app.tandemwear.watch.ancs.AncsService
+import app.tandemwear.watch.complication.NowPlayingComplicationService
 import app.tandemwear.watch.complication.TandemComplicationService
 import app.tandemwear.watch.data.PairedPhoneStore
 import app.tandemwear.watch.data.history.TandemDatabase
@@ -65,8 +66,8 @@ object SurfaceState {
     fun requestUpdate(context: Context) {
         val app = context.applicationContext
         TileService.getUpdater(app).requestUpdate(TandemTileService::class.java)
-        ComplicationDataSourceUpdateRequester
-            .create(app, ComponentName(app, TandemComplicationService::class.java))
-            .requestUpdateAll()
+        listOf(TandemComplicationService::class.java, NowPlayingComplicationService::class.java).forEach {
+            ComplicationDataSourceUpdateRequester.create(app, ComponentName(app, it)).requestUpdateAll()
+        }
     }
 }

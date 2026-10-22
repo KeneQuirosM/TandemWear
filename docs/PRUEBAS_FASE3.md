@@ -49,6 +49,17 @@ Todo está **por verificar en el reloj**. CI solo comprueba que compila y que pa
 4. Sin música, el Tile vuelve a mostrar la última notificación y el botón **Abrir**.
 5. Batería: el Tile no debe actualizarse por cada segundo de progreso, solo al cambiar de canción, al pausar o al reanudar. En el log no debe haber ráfagas de actualizaciones.
 
+## 3b. Complicación «Ahora suena» (por verificar en el Galaxy Watch 4)
+
+1. Mantén pulsada la esfera › Personalizar › Complicaciones. En la lista aparece **Ahora suena (iPhone)** con el icono de música.
+2. En un hueco **corto** (círculo pequeño), con Spotify sonando: icono de música y «▶». Pausa desde el iPhone: cambia a «❚❚» en pocos segundos. Sin música: «–».
+3. En un hueco **largo** (franja ancha; si tu esfera la tiene): «Título · Artista», con «…» si no cabe. Sin música: «Nada suena».
+4. En un hueco de **solo icono**: el icono de música.
+5. Tocar la complicación, en cualquiera de los tres tipos, abre el reproductor. Prueba también con TandemWear ya abierto en otra pantalla.
+6. TalkBack lee «Sonando: Título · Artista», «En pausa: …» o «Nada suena».
+7. Batería: la complicación cambia solo con la canción o con el estado de reproducción, no con cada segundo.
+8. La complicación anterior (contador de pendientes) sigue igual.
+
 ## 4. Ajuste «Música»
 
 1. Ajustes › desactiva **Música**:
