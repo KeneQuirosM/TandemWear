@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothProfile
 import android.util.Log
+import app.tandemwear.watch.battery.BatteryProtocol
 
 /**
  * BluetoothGattCallback implementation that routes ANCS characteristic changes
@@ -26,6 +27,8 @@ class GattCallback(
     private val onDataSourceChanged: (ByteArray) -> Unit,
     /** AMS characteristics (Phase 3): uuid + value. */
     private val onAmsChanged: (java.util.UUID, ByteArray) -> Unit,
+    /** Battery Level notifications (Phase 5.2). */
+    private val onBatteryChanged: (ByteArray) -> Unit,
     private val onDescriptorWritten: (BluetoothGattDescriptor, Int) -> Unit,
     private val onCharacteristicWritten: (BluetoothGattCharacteristic, Int) -> Unit,
     private val onMtuChanged: (Int, Int) -> Unit,
@@ -65,6 +68,7 @@ class GattCallback(
             AncsConstants.NOTIFICATION_SOURCE_UUID -> onNotificationSourceChanged(value)
             AncsConstants.DATA_SOURCE_UUID -> onDataSourceChanged(value)
             in AmsClient.CHARACTERISTICS -> onAmsChanged(characteristic.uuid, value)
+            BatteryProtocol.LEVEL_UUID -> onBatteryChanged(value)
             else -> Log.d(TAG, "Unhandled characteristic changed: ${characteristic.uuid}")
         }
     }

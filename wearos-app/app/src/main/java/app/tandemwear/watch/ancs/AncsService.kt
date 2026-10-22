@@ -114,6 +114,9 @@ class AncsService : Service() {
         private val _sharedMusic = MutableStateFlow(MusicSession.NONE)
         /** The iPhone's music for the current ANCS session (AMS). NONE without a session. */
         val sharedMusic: StateFlow<MusicSession> = _sharedMusic.asStateFlow()
+        private val _sharedBattery = MutableStateFlow<Int?>(null)
+        /** The iPhone's battery level (%), null when unknown or turned off. */
+        val sharedBattery: StateFlow<Int?> = _sharedBattery.asStateFlow()
         val sharedConnectionState: StateFlow<ConnectionState> = _sharedConnectionState.asStateFlow()
     }
 
@@ -246,6 +249,7 @@ class AncsService : Service() {
                 settings = it
                 // Applied live: subscribes to AMS now, or stops its notifications
                 connectionManager.setMusicEnabled(it.musicEnabled)
+                connectionManager.setBatteryEnabled(it.iphoneBatteryEnabled)
             }
         }
 
@@ -283,6 +287,15 @@ class AncsService : Service() {
             }
         }
 
+        // iPhone battery (Phase 5.2): surfaces refresh only when the level changes
+        scope.launch {
+            connectionManager.batteryLevel.collect { level ->
+                if (_sharedBattery.value != level) {
+                    _sharedBattery.value = level
+                    requestSurfaceUpdate()
+                }
+            }
+        }
         // Music (AMS): fold packets of the current session into the shared state
         scope.launch {
             connectionManager.amsEvents.collect { packet ->

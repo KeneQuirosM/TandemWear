@@ -53,6 +53,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setMusicEnabled(enabled: Boolean) = viewModelScope.launch { repository.setMusicEnabled(enabled) }
 
+    fun setIphoneBatteryEnabled(enabled: Boolean) = viewModelScope.launch { repository.setIphoneBatteryEnabled(enabled) }
+
     fun setHideContentOnLockScreen(hide: Boolean) = viewModelScope.launch { repository.setHideContentOnLockScreen(hide) }
 
     fun clearHistory() = viewModelScope.launch(Dispatchers.IO) { history.clear() }

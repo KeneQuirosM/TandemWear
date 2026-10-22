@@ -4,15 +4,12 @@ import java.util.UUID
 
 /**
  * Standard GATT Battery Service (Bluetooth SIG). Pure, unit-tested.
- * Phase 5.1 only probes it: does the iPhone expose it on our link, and can it be read?
+ * Confirmed on iOS 26 (21-10): 180f is published on our link and 2a19 is readable.
  */
 object BatteryProtocol {
 
     val SERVICE_UUID: UUID = UUID.fromString("0000180f-0000-1000-8000-00805f9b34fb")
     val LEVEL_UUID: UUID = UUID.fromString("00002a19-0000-1000-8000-00805f9b34fb")
-
-    /** Seconds after SESSION ACTIVE before the probe (after AMS's 5 s start). */
-    const val PROBE_DELAY_MS = 8_000L
 
     /** Battery Level is one byte, 0..100 %. Anything else is not a level. */
     fun parseLevel(value: ByteArray): Int? {

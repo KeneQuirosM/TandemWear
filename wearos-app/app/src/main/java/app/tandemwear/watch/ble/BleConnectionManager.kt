@@ -12,6 +12,7 @@ import android.os.SystemClock
 import android.util.Log
 import app.tandemwear.watch.ams.AmsProtocol
 import app.tandemwear.watch.battery.BatteryProtocol
+import app.tandemwear.watch.data.BatteryModeStore
 import app.tandemwear.watch.ams.RemoteCommand
 import app.tandemwear.watch.ble.GattOperationQueue.OpKey
 import app.tandemwear.watch.diag.DiagnosticsLog
@@ -113,12 +114,22 @@ class BleConnectionManager(
             emit = { packet -> if (!_amsEvents.tryEmit(packet)) Log.e(TAG, "AMS event dropped: buffer full") }
         )
     }
-    /** Phase 5.1: logs whether the iPhone's Battery Level can be read. Isolated like AMS. */
-    private val batteryProbe: BatteryProbe by lazy {
-        BatteryProbe(
+    private val _batteryLevel = MutableStateFlow<Int?>(null)
+    /** The iPhone's battery level (Phase 5.2); null when unknown. Never affects the ANCS session. */
+    val batteryLevel: StateFlow<Int?> = _batteryLevel.asStateFlow()
+
+    private val batteryClient: BatteryClient by lazy {
+        BatteryClient(
             scope, operations,
             ancsRequestsPending = { ancsRequestsPending() },
-            lastAncsActivityMs = { lastAncsActivityMs }
+            lastAncsActivityMs = { lastAncsActivityMs },
+            chosenMode = { BatteryModeStore(context).mode },
+            publish = { level ->
+                if (_batteryLevel.value != level) {
+                    _batteryLevel.value = level
+                    if (level != null) DiagnosticsLog.log("battery: iPhone $level%")
+                }
+            }
         )
     }
     private val adapter = (context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter
@@ -229,6 +240,7 @@ class BleConnectionManager(
             if (!_dataSourceEvents.tryEmit(data)) Log.e(TAG, "DS fragment dropped: buffer full")
         },
         onAmsChanged = { uuid, data -> amsClient.onNotification(uuid, data) },
+        onBatteryChanged = { data -> scope.launch { batteryClient.onLevelValue(data) } },
         onDescriptorWritten = { descriptor, status ->
             scope.launch {
                 lastDescriptorStatus = status
@@ -264,7 +276,7 @@ class BleConnectionManager(
                 val ok = status == BluetoothGatt.GATT_SUCCESS
                 operations.onComplete(OpKey.ReadCharacteristic(characteristic.uuid), ok)
                 if (ok && characteristic.uuid == AmsProtocol.ENTITY_ATTRIBUTE_UUID) amsClient.onEntityAttributeRead(value)
-                if (ok && characteristic.uuid == BatteryProtocol.LEVEL_UUID) batteryProbe.onLevelRead(value)
+                if (ok && characteristic.uuid == BatteryProtocol.LEVEL_UUID) batteryClient.onLevelValue(value)
                 if (ok) onCharacteristicRead(characteristic.uuid, value)
             }
         },
@@ -499,8 +511,8 @@ class BleConnectionManager(
             readGapDeviceName(g)
             // Music (Phase 3): starts later, only when ANCS is idle; its failures stay inside AmsClient
             amsClient.onAncsSessionActive(g, currentSessionId)
-            // Battery (Phase 5.1): one logged read, after AMS, same isolation
-            batteryProbe.onAncsSessionActive(g)
+            // Battery (Phase 5.2): after AMS, same isolation; its failures stay inside BatteryClient
+            batteryClient.onAncsSessionActive(g)
         } finally {
             isSubscribing = false
         }
@@ -605,6 +617,11 @@ class BleConnectionManager(
         scope.launch { amsClient.setMusicEnabled(enabled) }
     }
 
+    /** User setting "Batería del iPhone" (applied live). */
+    fun setBatteryEnabled(enabled: Boolean) {
+        scope.launch { batteryClient.setEnabled(enabled) }
+    }
+
     /** ON_DEMAND mode: the player screen or the Tile needs music data. */
     fun setMusicDemanded(wanted: Boolean) {
         scope.launch { amsClient.setDemanded(wanted) }
@@ -705,7 +722,7 @@ class BleConnectionManager(
 
     private fun clearSession() {
         amsClient.onSessionEnded()
-        batteryProbe.onSessionEnded()
+        batteryClient.onSessionEnded()
         if (linkUp) recordLinkStats()
         linkUp = false
         operations.clear()

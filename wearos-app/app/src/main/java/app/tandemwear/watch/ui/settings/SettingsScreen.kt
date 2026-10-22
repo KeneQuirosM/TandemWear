@@ -3,6 +3,7 @@ package app.tandemwear.watch.ui.settings
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.rounded.BatteryStd
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Forum
@@ -81,6 +82,16 @@ fun SettingsScreen(
                 icon = { Icon(Icons.Rounded.MusicNote, contentDescription = null) },
                 secondaryLabel = { Text(stringResource(R.string.settings_music_desc), fontSize = TandemType.caption) },
                 label = { Text(stringResource(R.string.settings_music), fontSize = TandemType.label) }
+            )
+        }
+        item {
+            SwitchButton(
+                checked = settings.iphoneBatteryEnabled,
+                onCheckedChange = { viewModel.setIphoneBatteryEnabled(it) },
+                modifier = Modifier.fillMaxWidth(),
+                icon = { Icon(Icons.Rounded.BatteryStd, contentDescription = null) },
+                secondaryLabel = { Text(stringResource(R.string.settings_iphone_battery_desc), fontSize = TandemType.caption) },
+                label = { Text(stringResource(R.string.settings_iphone_battery), fontSize = TandemType.label) }
             )
         }
         if (onPrivacy != null) {

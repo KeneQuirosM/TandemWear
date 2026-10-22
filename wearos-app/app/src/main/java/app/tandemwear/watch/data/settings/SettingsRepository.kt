@@ -69,6 +69,10 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         }
     }
 
+    suspend fun setIphoneBatteryEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.IPHONE_BATTERY] = enabled }
+    }
+
     suspend fun setVipRingsInQuietHours(enabled: Boolean) {
         dataStore.edit { it[Keys.VIP_IN_QUIET_HOURS] = enabled }
     }
@@ -109,6 +113,7 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         val HISTORY_ENABLED = booleanPreferencesKey("history_enabled")
         val LOCK_SCREEN_PRIVATE = booleanPreferencesKey("lock_screen_private")
         val MUSIC_ENABLED = booleanPreferencesKey("music_enabled")
+        val IPHONE_BATTERY = booleanPreferencesKey("iphone_battery")
         val VIPS = stringSetPreferencesKey("vip_conversations")
         val VIP_IN_QUIET_HOURS = booleanPreferencesKey("vip_in_quiet_hours")
         val MUTED_CONVERSATIONS = stringSetPreferencesKey("muted_conversations")
@@ -137,6 +142,7 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
                 historyEnabled = prefs[Keys.HISTORY_ENABLED] ?: defaults.historyEnabled,
                 hideContentOnLockScreen = prefs[Keys.LOCK_SCREEN_PRIVATE] ?: defaults.hideContentOnLockScreen,
                 musicEnabled = prefs[Keys.MUSIC_ENABLED] ?: defaults.musicEnabled,
+                iphoneBatteryEnabled = prefs[Keys.IPHONE_BATTERY] ?: defaults.iphoneBatteryEnabled,
                 vips = prefs[Keys.VIPS].orEmpty().mapNotNull(Conversation::decode).sortedBy { it.title.lowercase() },
                 vipRingsInQuietHours = prefs[Keys.VIP_IN_QUIET_HOURS] ?: defaults.vipRingsInQuietHours,
                 mutedConversations = prefs[Keys.MUTED_CONVERSATIONS].orEmpty()

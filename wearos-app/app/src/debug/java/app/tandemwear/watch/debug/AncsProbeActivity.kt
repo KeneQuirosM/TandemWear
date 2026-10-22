@@ -13,6 +13,8 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import app.tandemwear.watch.ancs.AncsService
+import app.tandemwear.watch.battery.BatteryPolicy
+import app.tandemwear.watch.data.BatteryModeStore
 import app.tandemwear.watch.data.CallDebugStore
 import app.tandemwear.watch.data.PairedPhoneStore
 import app.tandemwear.watch.diag.DiagnosticsLog
@@ -92,6 +94,17 @@ class AncsProbeActivity : Activity() {
                     calls.useTelecom = !calls.useTelecom
                     text = "Calls via Telecom: ${if (calls.useTelecom) "ON" else "OFF"}"
                     DiagnosticsLog.log("probe: calls via Telecom = ${calls.useTelecom}")
+                }
+            })
+            addView(Button(this@AncsProbeActivity).apply {
+                // If subscribing to the iPhone's battery buzzes the watch, switch to polling (15 min)
+                val battery = BatteryModeStore(this@AncsProbeActivity)
+                text = "iPhone battery: ${battery.mode}"
+                setOnClickListener {
+                    val all = BatteryPolicy.Mode.entries
+                    battery.mode = all[(all.indexOf(battery.mode) + 1) % all.size]
+                    text = "iPhone battery: ${battery.mode}"
+                    DiagnosticsLog.log("probe: battery mode = ${battery.mode} (next connection)")
                 }
             })
             addView(Button(this@AncsProbeActivity).apply {

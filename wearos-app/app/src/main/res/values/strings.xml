@@ -206,4 +206,6 @@
     <string name="calls_answered">Answered on iPhone</string>
     <string name="calls_answered_on_watch">Answered from watch</string>
     <string name="calls_declined_on_watch">Declined from watch</string>
+    <string name="settings_iphone_battery">iPhone battery</string>
+    <string name="settings_iphone_battery_desc">Shown on Home, the Tile and the complication</string>
 </resources>

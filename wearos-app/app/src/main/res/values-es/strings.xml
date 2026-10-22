@@ -196,4 +196,6 @@
     <string name="calls_answered">Contestada en el iPhone</string>
     <string name="calls_answered_on_watch">Contestada desde el reloj</string>
     <string name="calls_declined_on_watch">Rechazada desde el reloj</string>
+    <string name="settings_iphone_battery">Batería del iPhone</string>
+    <string name="settings_iphone_battery_desc">En Inicio, el Tile y la complicación</string>
 </resources>

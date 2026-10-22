@@ -56,6 +56,8 @@ data class TandemSettings(
     val hideContentOnLockScreen: Boolean = false,
     /** Music from the iPhone (AMS): player, home card and Tile card. */
     val musicEnabled: Boolean = true,
+    /** The iPhone's battery level on Home, the Tile and the complication (Phase 5.2). */
+    val iphoneBatteryEnabled: Boolean = true,
     /** VIP conversations: they ring even when their app is muted. */
     val vips: List<Conversation> = emptyList(),
     /** VIPs also ring during our quiet hours (not the system's Do Not Disturb). */

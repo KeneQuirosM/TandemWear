@@ -96,3 +96,22 @@ Qué hace: **Inicio › Llamadas** lista las llamadas que vio el reloj: nombre o
 7. Desactiva el historial en Ajustes: la lista se vacía y dice que el historial está desactivado. Las llamadas siguientes no se guardan.
 8. **Borrar llamadas** vacía la lista.
 9. En el log aparece `calls: ended uid=… as MISSED|ANSWERED|…` por cada llamada.
+
+## 5.2a Batería del iPhone: seguimiento (sin interfaz todavía)
+
+Qué hace:
+- Unos 8 s después de `SESSION ACTIVE` lee el nivel y luego se **suscribe** a sus cambios: una sola escritura por conexión.
+- Cada paso espera a que ANCS esté libre y, si falla, solo lo anota en el log. Si la suscripción falla, pasa a leer cada 15 min.
+- **Ajustes › Batería del iPhone** (activado por defecto) lo enciende o lo apaga al momento. Al apagarlo deja de suscribirse y oculta el nivel.
+- **TW Probe ANCS › «iPhone battery: SUBSCRIBE/POLL»** cambia al modo de lectura cada 15 min, sin suscripción. Úsalo si la suscripción hace vibrar el reloj (gotcha 10). Se aplica en la siguiente conexión.
+
+1. Conecta. En el log aparecen, en orden:
+   - `battery: starting (session active), mode=SUBSCRIBE`;
+   - `battery: read level ok …`;
+   - `battery: iPhone 34%`;
+   - `battery: subscribe level ok …`.
+2. **¿Vibra el reloj** justo al escribir la suscripción (unos 8–9 s después de conectar)? Si vibra, pon POLL en TW Probe, reconecta y comprueba que ya no vibra (`mode=POLL`, sin `subscribe`).
+3. Con SUBSCRIBE, desconecta el iPhone del cargador o conéctalo: cuando el porcentaje cambie, aparece una nueva línea `battery: iPhone N%` sin que el reloj haga nada. **Por verificar** cada cuánto avisa iOS.
+4. Con POLL, el nivel se actualiza cada 15 min (más en reposo profundo).
+5. Ajustes › Batería del iPhone desactivado: aparece `battery: disabled` y `battery: unsubscribe level ok`. Al activarlo de nuevo, vuelve a leer en unos 8 s.
+6. Llegan notificaciones al conectar: se muestran sin retraso.
