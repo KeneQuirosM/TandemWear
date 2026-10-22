@@ -1,6 +1,6 @@
 # Audio de llamadas por el reloj (punto 4): conclusión
 
-Estado: **en espera de tu decisión**. No hay código.
+Estado: **cerrado como no viable** (decisión del 22-10-2026). No hay código y no lo habrá mientras Android no ofrezca una API pública para el audio del cliente HFP. Las llamadas se contestan o se rechazan desde el reloj, y la conversación sigue en el iPhone.
 
 ## Lo que muestra el reloj (volcado del 21-10)
 
@@ -48,7 +48,7 @@ Fuente: `framework/java/android/bluetooth/BluetoothSinkAudioPolicy.java` del mó
 
 Hablar por el reloj solo sería posible si Samsung lo habilitara para iPhone, cosa que el Galaxy Watch 4 no soporta oficialmente.
 
-Propuesta: cerrar el punto 4 como **no viable** y seguir con lo que sí funciona: contestar o rechazar desde el reloj, y que el audio quede en el iPhone.
+Decisión: el punto 4 se cierra como **no viable**. Seguimos con lo que sí funciona: contestar o rechazar desde el reloj, y que el audio quede en el iPhone.
 
 Una prueba opcional, sin código, para confirmarlo:
 
