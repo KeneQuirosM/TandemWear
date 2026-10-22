@@ -52,4 +52,13 @@ class TileModelTest {
         // Notifications keep their own fields (the Tile shows music first while something plays)
         assertEquals("Ana", withMusic.lastTitle)
     }
+
+    @Test
+    fun `title shows the iPhone battery only while connected`() {
+        val connected = TileModel(HomeStatus.Connected("iPhone"), 0, null, iphoneBattery = 34)
+        assertEquals("Conectado · 34%", connected.titleWithBattery("Conectado"))
+        assertEquals("Conectado", connected.copy(iphoneBattery = null).titleWithBattery("Conectado"))
+        val away = TileModel(HomeStatus.Reconnecting("iPhone"), 0, null, iphoneBattery = 34)
+        assertEquals("Reconectando", away.titleWithBattery("Reconectando"))
+    }
 }

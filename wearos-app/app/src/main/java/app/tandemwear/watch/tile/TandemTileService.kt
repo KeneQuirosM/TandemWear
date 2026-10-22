@@ -92,7 +92,7 @@ class TandemTileService : TileService() {
             TileModel.Tone.IDLE -> COLOR_IDLE
             TileModel.Tone.ATTENTION -> COLOR_ATTENTION
         }
-        val statusText = statusLabel(context, model)
+        val statusText = model.titleWithBattery(statusLabel(context, model))
         val music = model.music
         val openPlayer = clickable(
             action = ActionBuilders.launchAction(

@@ -116,6 +116,24 @@
                 android:value="0" />
         </service>
 
+        <!-- Complication "iPhone battery" (Phase 5.2): "34%", 0–100 % ring, or icon -->
+        <service
+            android:name=".complication.IphoneBatteryComplicationService"
+            android:exported="true"
+            android:label="@string/complication_iphone_battery_label"
+            android:icon="@drawable/ic_phone"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SHORT_TEXT,RANGED_VALUE,MONOCHROMATIC_IMAGE" />
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="0" />
+        </service>
+
         <receiver
             android:name=".ancs.BootReceiver"
             android:exported="true">

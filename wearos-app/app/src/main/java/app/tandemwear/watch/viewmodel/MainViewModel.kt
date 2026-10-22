@@ -92,6 +92,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /** The iPhone's music (AMS) for the current session. */
     val music: StateFlow<MusicSession> = AncsService.sharedMusic
 
+    /** The iPhone's battery level (Phase 5.2), null when unknown or turned off. */
+    val iphoneBattery: StateFlow<Int?> = AncsService.sharedBattery
+
     /** Sends a media command (play/pause, next, volume…) to the iPhone. */
     fun sendMediaCommand(command: RemoteCommand) {
         val context = getApplication<Application>()

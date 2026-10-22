@@ -115,3 +115,26 @@ Qué hace:
 4. Con POLL, el nivel se actualiza cada 15 min (más en reposo profundo).
 5. Ajustes › Batería del iPhone desactivado: aparece `battery: disabled` y `battery: unsubscribe level ok`. Al activarlo de nuevo, vuelve a leer en unos 8 s.
 6. Llegan notificaciones al conectar: se muestran sin retraso.
+
+## 5.2b Batería del iPhone en Inicio, Tile y complicación
+
+Qué hace:
+- **Inicio**: bajo el estado, «iPhone 34%» con un icono de batería, solo mientras hay conexión y se conoce el nivel.
+- **Tile**: el título pasa a «Conectado · 34%».
+- **Complicación «Batería del iPhone»**:
+  - texto corto: «34%» con icono de teléfono;
+  - **anillo** de 0 a 100 %;
+  - o solo el icono.
+  - Sin dato (desconectado o ajuste apagado), muestra «–» en texto corto y nada en el anillo.
+  - Tocarla abre TandemWear.
+- Todo se actualiza **solo cuando cambia el nivel**, nunca por temporizador.
+
+1. Con el iPhone conectado: Inicio muestra «iPhone N%», igual que el iPhone (±1 %).
+2. Pon la complicación en la esfera, en un hueco corto y, si la esfera lo permite, en uno de anillo. Muestran el mismo valor.
+3. Carga o descarga el iPhone hasta que cambie el %. Cambian Inicio, el Tile y la complicación.
+4. Desconecta el iPhone (Bluetooth apagado):
+   - Inicio deja de mostrar la línea;
+   - el Tile dice «Reconectando» sin porcentaje;
+   - la complicación muestra «–».
+5. Ajustes › Batería del iPhone apagado: desaparece de los tres sitios.
+6. TalkBack lee «iPhone 34%» en Inicio y «Batería del iPhone 34%» en la complicación.

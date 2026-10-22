@@ -198,4 +198,8 @@
     <string name="calls_declined_on_watch">Rechazada desde el reloj</string>
     <string name="settings_iphone_battery">Batería del iPhone</string>
     <string name="settings_iphone_battery_desc">En Inicio, el Tile y la complicación</string>
+    <string name="home_iphone_battery">iPhone %1$s</string>
+    <string name="complication_iphone_battery_label">Batería del iPhone</string>
+    <string name="complication_iphone_battery_desc">Batería del iPhone %1$s</string>
+    <string name="complication_iphone_battery_unknown">Batería del iPhone desconocida</string>
 </resources>

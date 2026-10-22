@@ -1,5 +1,6 @@
 package app.tandemwear.watch.tile
 
+import app.tandemwear.watch.battery.BatteryPolicy
 import app.tandemwear.watch.ui.home.HomeStatus
 
 /**
@@ -12,8 +13,16 @@ data class TileModel(
     val pending: Int,
     val last: LastNotification?,
     /** The iPhone's now-playing app, when any (AMS). */
-    val music: Music? = null
+    val music: Music? = null,
+    /** The iPhone's battery level (%), null when unknown or turned off (Phase 5.2). */
+    val iphoneBattery: Int? = null
 ) {
+    /** Tile title: "Connected · 34%" while connected and the level is known. */
+    fun titleWithBattery(statusLabel: String): String {
+        val battery = BatteryPolicy.label(iphoneBattery)
+        return if (status is HomeStatus.Connected && battery != null) "$statusLabel · $battery" else statusLabel
+    }
+
     data class Music(
         val appName: String?,
         val title: String?,

@@ -9,6 +9,7 @@ import androidx.wear.tiles.TileService
 import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
 import app.tandemwear.watch.ams.RemoteCommand
 import app.tandemwear.watch.ancs.AncsService
+import app.tandemwear.watch.complication.IphoneBatteryComplicationService
 import app.tandemwear.watch.complication.NowPlayingComplicationService
 import app.tandemwear.watch.complication.TandemComplicationService
 import app.tandemwear.watch.data.PairedPhoneStore
@@ -59,14 +60,19 @@ object SurfaceState {
                     musicSession.supports(RemoteCommand.PLAY) || musicSession.supports(RemoteCommand.PAUSE)
             )
         }
-        return Snapshot(TileModel(status, pending, last, music), hideOnTile = settings.hideContentOnLockScreen)
+        val battery = AncsService.sharedBattery.value.takeIf { settings.iphoneBatteryEnabled }
+        return Snapshot(TileModel(status, pending, last, music, battery), hideOnTile = settings.hideContentOnLockScreen)
     }
 
     /** Ask the system to refresh the Tile and the complication (it re-requests their data). */
     fun requestUpdate(context: Context) {
         val app = context.applicationContext
         TileService.getUpdater(app).requestUpdate(TandemTileService::class.java)
-        listOf(TandemComplicationService::class.java, NowPlayingComplicationService::class.java).forEach {
+        listOf(
+            TandemComplicationService::class.java,
+            NowPlayingComplicationService::class.java,
+            IphoneBatteryComplicationService::class.java
+        ).forEach {
             ComplicationDataSourceUpdateRequester.create(app, ComponentName(app, it)).requestUpdateAll()
         }
     }

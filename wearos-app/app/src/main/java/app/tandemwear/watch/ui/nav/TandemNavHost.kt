@@ -1,20 +1,20 @@
 package app.tandemwear.watch.ui.nav
 
-import app.tandemwear.watch.data.history.HistoryEntry
-import app.tandemwear.watch.notify.Conversation
-import app.tandemwear.watch.ui.recent.ConversationUi
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import app.tandemwear.watch.ui.MainActivity
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
+import app.tandemwear.watch.data.history.HistoryEntry
+import app.tandemwear.watch.notify.Conversation
+import app.tandemwear.watch.ui.MainActivity
 import app.tandemwear.watch.ui.about.AboutScreen
 import app.tandemwear.watch.ui.about.LicensesScreen
 import app.tandemwear.watch.ui.calls.CallsScreen
@@ -22,6 +22,7 @@ import app.tandemwear.watch.ui.home.HomeScreen
 import app.tandemwear.watch.ui.home.HomeStatus
 import app.tandemwear.watch.ui.music.PlayerScreen
 import app.tandemwear.watch.ui.pairing.PairScreen
+import app.tandemwear.watch.ui.recent.ConversationUi
 import app.tandemwear.watch.ui.recent.NotificationDetailScreen
 import app.tandemwear.watch.ui.settings.AppSettingsScreen
 import app.tandemwear.watch.ui.settings.AppsScreen
@@ -33,7 +34,6 @@ import app.tandemwear.watch.ui.settings.QuietTimePickerScreen
 import app.tandemwear.watch.ui.settings.SettingsScreen
 import app.tandemwear.watch.viewmodel.MainViewModel
 import app.tandemwear.watch.viewmodel.SettingsViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 
 object Routes {
     const val HOME = "home"

@@ -1,9 +1,13 @@
 package app.tandemwear.watch.ui.home
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BatteryStd
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Info
@@ -21,26 +25,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.FilledTonalButton
-import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.OutlinedButton
 import androidx.wear.compose.material3.Text
 import app.tandemwear.watch.R
 import app.tandemwear.watch.ams.MusicSession
+import app.tandemwear.watch.battery.BatteryPolicy
 import app.tandemwear.watch.data.history.HistoryEntry
-import app.tandemwear.watch.ui.music.MusicCard
 import app.tandemwear.watch.ui.components.ConnectionMark
 import app.tandemwear.watch.ui.components.TandemList
+import app.tandemwear.watch.ui.music.MusicCard
 import app.tandemwear.watch.ui.recent.EmptyRecent
 import app.tandemwear.watch.ui.recent.NotificationCard
 import app.tandemwear.watch.ui.theme.TandemColors
@@ -60,6 +66,7 @@ fun HomeScreen(
     val status by viewModel.homeStatus.collectAsState()
     val recent by viewModel.recent.collectAsState()
     val music by viewModel.music.collectAsState()
+    val iphoneBattery by viewModel.iphoneBattery.collectAsState()
     // Re-checked on every resume: the user may come back from the system screen
     var callScreenBlocked by remember { mutableStateOf(false) }
     LifecycleResumeEffect(Unit) {
@@ -79,7 +86,8 @@ fun HomeScreen(
         onOpenNotification = onOpenNotification,
         callScreenBlocked = callScreenBlocked,
         onAllowCallScreen = { viewModel.openCallScreenSettings() },
-        onCalls = onCalls
+        onCalls = onCalls,
+        iphoneBattery = iphoneBattery
     )
 }
 
@@ -98,10 +106,17 @@ fun HomeContent(
     onOpenPlayer: () -> Unit = {},
     callScreenBlocked: Boolean = false,
     onAllowCallScreen: () -> Unit = {},
-    onCalls: () -> Unit = {}
+    onCalls: () -> Unit = {},
+    iphoneBattery: Int? = null
 ) {
     TandemList {
         item { StatusHeader(status) }
+
+        // "iPhone 34%" while connected and the level is known (Phase 5.2)
+        val batteryLabel = BatteryPolicy.label(iphoneBattery)
+        if (status is HomeStatus.Connected && batteryLabel != null) {
+            item { IphoneBatteryLine(batteryLabel) }
+        }
 
         item {
             StatusAction(
@@ -289,4 +304,17 @@ private fun CallScreenWarning(onAllow: () -> Unit) {
         label = { Text(stringResource(R.string.call_screen_blocked_title), fontSize = TandemType.label) },
         secondaryLabel = { Text(stringResource(R.string.call_screen_blocked_body), fontSize = TandemType.caption) }
     )
+}
+
+@Composable
+private fun IphoneBatteryLine(label: String) {
+    val text = stringResource(R.string.home_iphone_battery, label)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = text }
+    ) {
+        Icon(Icons.Rounded.BatteryStd, contentDescription = null, tint = TandemColors.textMuted, modifier = Modifier.size(14.dp))
+        Text(text, fontSize = TandemType.caption, color = TandemColors.textMuted, modifier = Modifier.padding(start = 4.dp))
+    }
 }

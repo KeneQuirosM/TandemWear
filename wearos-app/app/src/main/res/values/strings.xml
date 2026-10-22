@@ -208,4 +208,8 @@
     <string name="calls_declined_on_watch">Declined from watch</string>
     <string name="settings_iphone_battery">iPhone battery</string>
     <string name="settings_iphone_battery_desc">Shown on Home, the Tile and the complication</string>
+    <string name="home_iphone_battery">iPhone %1$s</string>
+    <string name="complication_iphone_battery_label">iPhone battery</string>
+    <string name="complication_iphone_battery_desc">iPhone battery %1$s</string>
+    <string name="complication_iphone_battery_unknown">iPhone battery unknown</string>
 </resources>
