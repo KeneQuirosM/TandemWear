@@ -1,5 +1,7 @@
 package app.tandemwear.watch.data.settings
 
+import app.tandemwear.watch.notify.Conversation
+
 /** Per-app choices. The default (all false) means "show normally". */
 data class AppRule(
     /** Never show notifications from this app on the watch. */
@@ -53,7 +55,19 @@ data class TandemSettings(
     /** Hide notification text on the watch's lock screen (all apps). */
     val hideContentOnLockScreen: Boolean = false,
     /** Music from the iPhone (AMS): player, home card and Tile card. */
-    val musicEnabled: Boolean = true
+    val musicEnabled: Boolean = true,
+    /** VIP conversations: they ring even when their app is muted. */
+    val vips: List<Conversation> = emptyList(),
+    /** VIPs also ring during our quiet hours (not the system's Do Not Disturb). */
+    val vipRingsInQuietHours: Boolean = false,
+    /** Silenced conversations and when the silence ends (ms since epoch). */
+    val mutedConversations: Map<Conversation, Long> = emptyMap()
 ) {
     fun ruleFor(appId: String): AppRule = appRules[appId] ?: AppRule()
+
+    fun isVip(appId: String, title: String): Boolean = vips.any { it.matches(appId, title) }
+
+    /** End of the conversation's silence if it is still silenced at [nowMs]. */
+    fun mutedUntil(appId: String, title: String, nowMs: Long): Long? =
+        mutedConversations.entries.firstOrNull { (c, until) -> until > nowMs && c.matches(appId, title) }?.value
 }

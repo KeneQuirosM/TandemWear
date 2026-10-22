@@ -3,6 +3,7 @@ package app.tandemwear.watch.data.settings
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
+import app.tandemwear.watch.notify.Conversation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -66,5 +67,29 @@ class SettingsRepositoryTest {
         val before = repo.settings.first()
         repo.setHistoryEnabled(!before.historyEnabled)
         assertEquals(!before.historyEnabled, repo.settings.first().historyEnabled)
+    }
+
+    @Test
+    fun `VIPs and silenced conversations round trip`() = runBlocking {
+        val mom = Conversation("net.whatsapp.WhatsApp", "Mamá")
+        val work = Conversation("com.apple.MobileSMS", "Trabajo")
+        repo.setVip(mom, true)
+        repo.setVipRingsInQuietHours(true)
+        repo.muteConversation(work, untilMs = 2_000, nowMs = 1_000)
+        var s = repo.settings.first()
+        assertEquals(listOf(mom), s.vips)
+        assertTrue(s.vipRingsInQuietHours)
+        assertEquals(2_000L, s.mutedUntil("com.apple.MobileSMS", "trabajo", 1_500))
+
+        // Same conversation spelled differently: replaced, not duplicated
+        repo.setVip(Conversation("net.whatsapp.WhatsApp", "mama"), false)
+        repo.muteConversation(Conversation("com.apple.MobileSMS", "TRABAJO"), untilMs = 9_000, nowMs = 1_000)
+        s = repo.settings.first()
+        assertTrue(s.vips.isEmpty())
+        assertEquals(1, s.mutedConversations.size)
+        assertEquals(9_000L, s.mutedUntil("com.apple.MobileSMS", "Trabajo", 1_000))
+
+        repo.unmuteConversation(work, nowMs = 1_000)
+        assertTrue(repo.settings.first().mutedConversations.isEmpty())
     }
 }

@@ -704,7 +704,9 @@ class AncsService : Service() {
         }
         // Fresh id per (session, UID): a renumbered UID never replaces an old notification
         // silently. MODIFIED events reuse the id and update in place (setOnlyAlertOnce).
-        val decision = NotificationPolicy.decide(settings, notification.appIdentifier, minuteOfDay())
+        val decision = NotificationPolicy.decide(
+            settings, notification.appIdentifier, minuteOfDay(), notification.title, System.currentTimeMillis()
+        )
         val displayAppName = appName ?: notification.appIdentifier
         if (!decision.show) {
             // App disabled in Settings: nothing posted or stored, but it stays listed in Settings › Apps

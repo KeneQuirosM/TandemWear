@@ -28,13 +28,32 @@ object NotificationPolicy {
 
     private val DROP = Decision(show = false, alert = Alert.SILENT, hideContent = true, privateOnLockScreen = true)
 
-    fun decide(settings: TandemSettings, appId: String, minuteOfDay: Int): Decision {
+    /**
+     * Order: a disabled app shows nothing (VIP included); a silenced conversation is silent;
+     * a VIP rings even if its app is muted, and during our quiet hours only when
+     * [TandemSettings.vipRingsInQuietHours] is on; otherwise app mute and quiet hours apply.
+     * [title] and [nowMs] identify the conversation and the time for VIP / silence.
+     */
+    fun decide(
+        settings: TandemSettings,
+        appId: String,
+        minuteOfDay: Int,
+        title: String = "",
+        nowMs: Long = 0L
+    ): Decision {
         val rule = settings.ruleFor(appId)
         if (rule.disabled) return DROP
         val quiet = settings.quietHours.isActiveAt(minuteOfDay)
+        val alert = when {
+            title.isNotBlank() && settings.mutedUntil(appId, title, nowMs) != null -> Alert.SILENT
+            title.isNotBlank() && settings.isVip(appId, title) ->
+                if (quiet && !settings.vipRingsInQuietHours) Alert.SILENT else Alert.ALERT
+            rule.muted || quiet -> Alert.SILENT
+            else -> Alert.ALERT
+        }
         return Decision(
             show = true,
-            alert = if (rule.muted || quiet) Alert.SILENT else Alert.ALERT,
+            alert = alert,
             hideContent = rule.hideContent,
             privateOnLockScreen = rule.hideContent || settings.hideContentOnLockScreen
         )

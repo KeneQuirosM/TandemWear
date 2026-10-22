@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import app.tandemwear.watch.notify.Conversation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -61,6 +62,37 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         dataStore.edit { it[Keys.LOCK_SCREEN_PRIVATE] = hide }
     }
 
+    suspend fun setVip(conversation: Conversation, vip: Boolean) {
+        dataStore.edit { prefs ->
+            val others = prefs[Keys.VIPS].orEmpty().filterNot { decodedMatches(Conversation.decode(it), conversation) }.toSet()
+            prefs[Keys.VIPS] = if (vip) others + conversation.encode() else others
+        }
+    }
+
+    suspend fun setVipRingsInQuietHours(enabled: Boolean) {
+        dataStore.edit { it[Keys.VIP_IN_QUIET_HOURS] = enabled }
+    }
+
+    /** Silences [conversation] until [untilMs] (replaces any earlier silence); drops expired ones. */
+    suspend fun muteConversation(conversation: Conversation, untilMs: Long, nowMs: Long) {
+        dataStore.edit { prefs ->
+            prefs[Keys.MUTED_CONVERSATIONS] = keptMuted(prefs, conversation, nowMs) + Conversation.encodeMuted(conversation, untilMs)
+        }
+    }
+
+    suspend fun unmuteConversation(conversation: Conversation, nowMs: Long) {
+        dataStore.edit { prefs -> prefs[Keys.MUTED_CONVERSATIONS] = keptMuted(prefs, conversation, nowMs) }
+    }
+
+    private fun keptMuted(prefs: Preferences, without: Conversation, nowMs: Long): Set<String> =
+        prefs[Keys.MUTED_CONVERSATIONS].orEmpty().filter { value ->
+            val (c, until) = Conversation.decodeMuted(value) ?: return@filter false
+            until > nowMs && !decodedMatches(c, without)
+        }.toSet()
+
+    private fun decodedMatches(decoded: Conversation?, target: Conversation): Boolean =
+        decoded != null && decoded.matches(target.appId, target.title)
+
     private fun MutablePreferences.toggle(key: Preferences.Key<Set<String>>, appId: String, on: Boolean) {
         val current = this[key].orEmpty()
         this[key] = if (on) current + appId else current - appId
@@ -77,6 +109,9 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         val HISTORY_ENABLED = booleanPreferencesKey("history_enabled")
         val LOCK_SCREEN_PRIVATE = booleanPreferencesKey("lock_screen_private")
         val MUSIC_ENABLED = booleanPreferencesKey("music_enabled")
+        val VIPS = stringSetPreferencesKey("vip_conversations")
+        val VIP_IN_QUIET_HOURS = booleanPreferencesKey("vip_in_quiet_hours")
+        val MUTED_CONVERSATIONS = stringSetPreferencesKey("muted_conversations")
     }
 
     companion object {
@@ -101,7 +136,11 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
                 ),
                 historyEnabled = prefs[Keys.HISTORY_ENABLED] ?: defaults.historyEnabled,
                 hideContentOnLockScreen = prefs[Keys.LOCK_SCREEN_PRIVATE] ?: defaults.hideContentOnLockScreen,
-                musicEnabled = prefs[Keys.MUSIC_ENABLED] ?: defaults.musicEnabled
+                musicEnabled = prefs[Keys.MUSIC_ENABLED] ?: defaults.musicEnabled,
+                vips = prefs[Keys.VIPS].orEmpty().mapNotNull(Conversation::decode).sortedBy { it.title.lowercase() },
+                vipRingsInQuietHours = prefs[Keys.VIP_IN_QUIET_HOURS] ?: defaults.vipRingsInQuietHours,
+                mutedConversations = prefs[Keys.MUTED_CONVERSATIONS].orEmpty()
+                    .mapNotNull(Conversation::decodeMuted).toMap()
             )
         }
     }
