@@ -17,6 +17,7 @@ import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 import app.tandemwear.watch.ui.about.AboutScreen
 import app.tandemwear.watch.ui.about.LicensesScreen
+import app.tandemwear.watch.ui.calls.CallsScreen
 import app.tandemwear.watch.ui.home.HomeScreen
 import app.tandemwear.watch.ui.home.HomeStatus
 import app.tandemwear.watch.ui.music.PlayerScreen
@@ -50,6 +51,7 @@ object Routes {
     fun quietTime(edge: QuietEdge) = "quiet/" + edge.name
     const val PRIVACY = "privacy"
     const val CONVERSATIONS = "conversations"
+    const val CALLS = "calls"
     const val PLAYER = "player"
 }
 
@@ -82,8 +84,14 @@ fun TandemNavHost(
                     onAbout = { navController.navigate(Routes.ABOUT) },
                     onSettings = { navController.navigate(Routes.SETTINGS) },
                     onOpenNotification = { navController.navigate(Routes.detail(it)) },
-                    onOpenPlayer = { navController.navigate(Routes.PLAYER) }
+                    onOpenPlayer = { navController.navigate(Routes.PLAYER) },
+                    onCalls = { navController.navigate(Routes.CALLS) }
                 )
+            }
+            composable(Routes.CALLS) {
+                val calls by viewModel.calls.collectAsState()
+                val settings by settingsViewModel.settings.collectAsState()
+                CallsScreen(calls, historyEnabled = settings.historyEnabled, onClear = { viewModel.clearCalls() })
             }
             composable(Routes.PAIR) {
                 PairScreen(viewModel = viewModel, onDone = { navController.popBackStack() })

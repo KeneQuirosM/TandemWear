@@ -74,3 +74,25 @@ Qué hace: la base de datos pasa a la versión 2 con la tabla `calls`. La migrac
 1. **Antes de instalar el APK nuevo**, anota qué hay en Recientes.
 2. Instala por encima (`adb install -r …`), sin desinstalar.
 3. Recientes muestra lo mismo que antes, y Ajustes › Apps conserva su lista.
+
+## 5.4b Historial de llamadas
+
+Qué hace: **Inicio › Llamadas** lista las llamadas que vio el reloj: nombre o número, icono, tipo, app y hora relativa.
+- Tipos:
+  - **Perdida** (en rojo): sonó y nadie contestó, o llegó del iPhone la notificación de llamada perdida;
+  - **Contestada en el iPhone**;
+  - **Contestada desde el reloj**;
+  - **Rechazada desde el reloj**.
+- Una llamada que sonó en el reloj y su aviso de «llamada perdida» del iPhone cuentan como **una sola** si son del mismo nombre con menos de 3 min de diferencia.
+- Se guardan las últimas 100. Se borran al desemparejar o cambiar de iPhone, al desactivar el historial en Ajustes y con **Borrar llamadas**.
+- No hay botón para devolver la llamada: el reloj no puede llamar a través del iPhone.
+
+1. Llamada que no contestas: aparece una sola entrada **Perdida** con el nombre y «hace 1 min», no dos.
+2. Contesta en el iPhone: aparece **Contestada en el iPhone**.
+3. Contesta desde el reloj: aparece **Contestada desde el reloj**.
+4. Rechaza desde el reloj (pantalla o notificación): aparece **Rechazada desde el reloj**.
+5. Llamada de WhatsApp: la app aparece como «WhatsApp».
+6. Con horas de silencio que no dejan pasar llamadas, la llamada no suena, pero el aviso de llamada perdida del iPhone la añade como **Perdida**.
+7. Desactiva el historial en Ajustes: la lista se vacía y dice que el historial está desactivado. Las llamadas siguientes no se guardan.
+8. **Borrar llamadas** vacía la lista.
+9. En el log aparece `calls: ended uid=… as MISSED|ANSWERED|…` por cada llamada.

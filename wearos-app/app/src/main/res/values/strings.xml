@@ -198,4 +198,12 @@
     <string name="settings_muted_list">Silenced</string>
     <string name="settings_muted_empty">No silenced conversations.</string>
     <string name="settings_tap_to_remove">%1$s · tap to remove</string>
+    <string name="calls_title">Calls</string>
+    <string name="calls_empty">No calls yet. Missed, answered and declined calls appear here.</string>
+    <string name="calls_history_off">History is off in Settings, so calls are not kept.</string>
+    <string name="calls_clear">Clear calls</string>
+    <string name="calls_missed">Missed</string>
+    <string name="calls_answered">Answered on iPhone</string>
+    <string name="calls_answered_on_watch">Answered from watch</string>
+    <string name="calls_declined_on_watch">Declined from watch</string>
 </resources>

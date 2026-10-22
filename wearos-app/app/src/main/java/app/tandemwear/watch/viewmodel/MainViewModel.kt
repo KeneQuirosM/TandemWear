@@ -18,6 +18,7 @@ import app.tandemwear.watch.ams.RemoteCommand
 import app.tandemwear.watch.ancs.AncsService
 import app.tandemwear.watch.ancs.CallScreenAccess
 import app.tandemwear.watch.ancs.NotificationActionReceiver
+import app.tandemwear.watch.data.history.CallEntry
 import app.tandemwear.watch.data.history.HistoryEntry
 import app.tandemwear.watch.data.history.HistoryRepository
 import app.tandemwear.watch.data.history.TandemDatabase
@@ -42,6 +43,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val bluetoothManager = application.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
 
     private val history = HistoryRepository(TandemDatabase.get(application).historyDao())
+    private val callDao = TandemDatabase.get(application).callDao()
+
+    /** Call log (Phase 5.4), newest first. */
+    val calls: StateFlow<List<CallEntry>> = callDao.observeAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun clearCalls() = viewModelScope.launch(Dispatchers.IO) { callDao.clear() }
 
     // Observe the service's shared connection state directly
     val connectionState: StateFlow<ConnectionState> = AncsService.sharedConnectionState

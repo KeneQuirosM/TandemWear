@@ -20,6 +20,10 @@ import app.tandemwear.watch.AncsApplication
 import app.tandemwear.watch.R
 import app.tandemwear.watch.ams.MusicSession
 import app.tandemwear.watch.ams.RemoteCommand
+import app.tandemwear.watch.calls.CallLogPolicy
+import app.tandemwear.watch.calls.CallOutcome
+import app.tandemwear.watch.data.history.CallDao
+import app.tandemwear.watch.data.history.CallEntry
 import app.tandemwear.watch.ble.AmsPacket
 import app.tandemwear.watch.ble.AncsConstants
 import app.tandemwear.watch.ble.BleConnectionManager
@@ -147,6 +151,11 @@ class AncsService : Service() {
 
     private var activeCallUid: Long = -1
 
+    /** Calls ringing now, by UID (Phase 5.4): logged when they stop ringing. Main thread. */
+    private class RingingCall(var caller: String, val appName: String, val atMs: Long, var outcome: CallOutcome? = null)
+    private val ringingCalls = HashMap<Long, RingingCall>()
+    private lateinit var calls: CallDao
+
     // ANCS UID → Android id, per session (UIDs are renumbered on every reconnect)
     private lateinit var idRegistry: NotificationIdRegistry
 
@@ -230,6 +239,7 @@ class AncsService : Service() {
         notificationManager = getSystemService(NotificationManager::class.java)
         vibrator = getSystemService(Vibrator::class.java)
         history = HistoryRepository(TandemDatabase.get(this).historyDao())
+        calls = TandemDatabase.get(this).callDao()
         seenNotifications = SeenNotifications(java.io.File(filesDir, "seen_notifications.txt"))
         scope.launch {
             SettingsRepository(this@AncsService).settings.collect {
@@ -503,6 +513,7 @@ class AncsService : Service() {
                 // Transition the call overlay to "Active on iPhone" state.
                 if (event.isModified && event.isIncomingCall && activeCallUid == event.notificationUid) {
                     Log.i(TAG, "Call MODIFIED (answered on iPhone) uid=${event.notificationUid}")
+                    ringingCalls[event.notificationUid]?.let { if (it.outcome == null) it.outcome = CallOutcome.ANSWERED }
                     vibrator.cancel()
                     // Cancel the CallStyle notification — no longer ringing
                     notificationManager.cancel(NOTIFICATION_ID_CALL)
@@ -566,6 +577,7 @@ class AncsService : Service() {
                 // If this was an incoming call, dismiss everything
                 if (event.isIncomingCall || activeCallUid == event.notificationUid) {
                     Log.i(TAG, "Call ended (REMOVE) uid=${event.notificationUid}")
+                    finishCall(event.notificationUid)
                     activeCallUid = -1
                     vibrator.cancel()
                     notificationManager.cancel(NOTIFICATION_ID_CALL)
@@ -678,6 +690,10 @@ class AncsService : Service() {
             Log.i(TAG, "Showing incoming call screen for ${notification.title}")
             showIncomingCall(updatedNotification)
             return
+        }
+
+        if (notification.categoryId == AncsConstants.CATEGORY_MISSED_CALL && !isPreExisting) {
+            logMissedCallNotification(notification.title, appName ?: getString(R.string.call_default_app))
         }
 
         // Skip pre-existing notifications — they're already on the phone.
@@ -933,6 +949,32 @@ class AncsService : Service() {
         scope.launch(Dispatchers.IO) {
             history.clear()
             seenNotifications.clear()
+            calls.clear()
+        }
+    }
+
+    /** The call [uid] stopped ringing: log it with what happened (Phase 5.4). */
+    private fun finishCall(uid: Long) {
+        val call = ringingCalls.remove(uid) ?: return
+        val outcome = CallLogPolicy.outcomeOnEnd(call.outcome)
+        DiagnosticsLog.log("calls: ended uid=$uid as $outcome")
+        if (!settings.historyEnabled) return
+        scope.launch(Dispatchers.IO) {
+            calls.insert(CallEntry(caller = call.caller, appName = call.appName, outcome = outcome.name, at = call.atMs))
+            calls.trimTo(CallLogPolicy.KEEP)
+        }
+    }
+
+    /** The iPhone's "Missed Call" notification: logged unless it is the call that just rang. */
+    private fun logMissedCallNotification(caller: String, appName: String) {
+        if (!settings.historyEnabled || caller.isBlank()) return
+        val now = System.currentTimeMillis()
+        scope.launch(Dispatchers.IO) {
+            val recent = calls.since(now - CallLogPolicy.SAME_CALL_WINDOW_MS).map { it.caller to it.at }
+            if (CallLogPolicy.isAlreadyLogged(caller, now, recent)) return@launch
+            calls.insert(CallEntry(caller = caller, appName = appName, outcome = CallOutcome.MISSED.name, at = now))
+            calls.trimTo(CallLogPolicy.KEEP)
+            DiagnosticsLog.log("calls: missed call notification logged")
         }
     }
 
@@ -959,6 +1001,7 @@ class AncsService : Service() {
             // Already showing — just update caller name if it changed
             if (callerName != placeholderTitle) {
                 AncsConnectionService.activeConnection?.updateCallerName(callerName)
+                ringingCalls[notification.uid]?.caller = callerName
                 // Also update the IncomingCallActivity via broadcast
                 sendBroadcast(Intent(IncomingCallActivity.ACTION_CALLER_NAME_UPDATED).apply {
                     setPackage(packageName)
@@ -969,6 +1012,7 @@ class AncsService : Service() {
             return
         }
         activeCallUid = notification.uid
+        ringingCalls[notification.uid] = RingingCall(callerName, appName, System.currentTimeMillis())
 
         val callStartedAt = SystemClock.elapsedRealtime()
         val sessionId = idRegistry.sessionId
@@ -1074,6 +1118,11 @@ class AncsService : Service() {
         if (uid == activeCallUid) {
             val what = if (actionId == AncsConstants.ACTION_POSITIVE) "answer" else "decline"
             DiagnosticsLog.log("call: $what uid=$uid session=${if (sessionId == NotificationIdRegistry.NO_SESSION) "none" else "bound"}")
+            ringingCalls[uid]?.let {
+                if (it.outcome == null) {
+                    it.outcome = if (actionId == AncsConstants.ACTION_POSITIVE) CallOutcome.ANSWERED_ON_WATCH else CallOutcome.DECLINED_ON_WATCH
+                }
+            }
             // Answered from the watch: stop Telecom's ringing call (the audio stays on the iPhone)
             if (actionId == AncsConstants.ACTION_POSITIVE) AncsConnectionService.endActiveCall()
         }
@@ -1126,6 +1175,7 @@ class AncsService : Service() {
         while (attributeRequestQueue.tryReceive().isSuccess) dropped++
         attributeRequestsPending.updateAndGet { (it - dropped).coerceAtLeast(0) }
         if (activeCallUid != -1L) {
+            finishCall(activeCallUid)
             activeCallUid = -1
             vibrator.cancel()
             notificationManager.cancel(NOTIFICATION_ID_CALL)

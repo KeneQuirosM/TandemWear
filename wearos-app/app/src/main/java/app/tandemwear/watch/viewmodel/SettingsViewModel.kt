@@ -45,7 +45,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setHistoryEnabled(enabled: Boolean) = viewModelScope.launch {
         repository.setHistoryEnabled(enabled)
         // Turning history off also forgets what was stored
-        if (!enabled) launch(Dispatchers.IO) { history.clear() }
+        if (!enabled) launch(Dispatchers.IO) {
+            history.clear()
+            TandemDatabase.get(getApplication()).callDao().clear()
+        }
     }
 
     fun setMusicEnabled(enabled: Boolean) = viewModelScope.launch { repository.setMusicEnabled(enabled) }

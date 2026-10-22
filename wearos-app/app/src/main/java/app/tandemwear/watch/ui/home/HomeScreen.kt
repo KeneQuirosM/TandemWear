@@ -54,7 +54,8 @@ fun HomeScreen(
     onAbout: () -> Unit,
     onSettings: () -> Unit,
     onOpenNotification: (Long) -> Unit,
-    onOpenPlayer: () -> Unit
+    onOpenPlayer: () -> Unit,
+    onCalls: () -> Unit = {}
 ) {
     val status by viewModel.homeStatus.collectAsState()
     val recent by viewModel.recent.collectAsState()
@@ -77,7 +78,8 @@ fun HomeScreen(
         onSettings = onSettings,
         onOpenNotification = onOpenNotification,
         callScreenBlocked = callScreenBlocked,
-        onAllowCallScreen = { viewModel.openCallScreenSettings() }
+        onAllowCallScreen = { viewModel.openCallScreenSettings() },
+        onCalls = onCalls
     )
 }
 
@@ -95,7 +97,8 @@ fun HomeContent(
     music: MusicSession = MusicSession.NONE,
     onOpenPlayer: () -> Unit = {},
     callScreenBlocked: Boolean = false,
-    onAllowCallScreen: () -> Unit = {}
+    onAllowCallScreen: () -> Unit = {},
+    onCalls: () -> Unit = {}
 ) {
     TandemList {
         item { StatusHeader(status) }
@@ -126,6 +129,15 @@ fun HomeContent(
             items(recent, key = { it.id }) { entry ->
                 NotificationCard(entry, onClick = { onOpenNotification(entry.id) })
             }
+        }
+
+        item {
+            FilledTonalButton(
+                onClick = onCalls,
+                modifier = Modifier.fillMaxWidth(),
+                icon = { Icon(Icons.Rounded.Call, contentDescription = null) },
+                label = { Text(stringResource(R.string.calls_title), fontSize = TandemType.label) }
+            )
         }
 
         item {
