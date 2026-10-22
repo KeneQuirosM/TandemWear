@@ -138,3 +138,20 @@ Qué hace:
    - la complicación muestra «–».
 5. Ajustes › Batería del iPhone apagado: desaparece de los tres sitios.
 6. TalkBack lee «iPhone 34%» en Inicio y «Batería del iPhone 34%» en la complicación.
+
+## B2 (evaluación) paso 1: hora del iPhone, solo registro
+
+Qué hace:
+- Unos 3 s después de `SESSION ACTIVE`, lee **una vez** la hora actual (`2a2b`) y la información de hora local (`2a0f`) del servicio 1805 del iPhone, y solo lo anota en el log.
+- Va antes de AMS (5 s) y de la batería (8 s). Pasa por la misma cola y espera a que ANCS esté libre. Solo lee, nunca escribe, y si falla solo lo anota.
+- **Ninguna regla cambia**: B2 sigue igual. Las notificaciones que llegan antes o después de la lectura usan la regla actual.
+
+1. Conecta el iPhone. En el log aparecen:
+   - `time: 1805 has 2a2b=true 2a0f=…` — **¿2a0f true o false?**
+   - `time: 2a2b raw …` y `time: 2a0f raw …`, los bytes tal como llegan;
+   - `time: iPhone 2026-10-22T21:30:15.5 | zone -06:00 dst +0 min | skew +0.4 s` — **pásame estas líneas**.
+2. Comprueba que la hora coincide con la del iPhone y que la zona es la de tu iPhone (Costa Rica: `-06:00`, sin horario de verano).
+3. **¿Vibra el reloj** unos 3 s después de conectar? Solo hay lecturas, así que no debería.
+4. Con la zona del reloj en manual distinta de la real (prueba opcional), el `skew` sigue siendo pequeño (segundos): la hora absoluta del iPhone no depende de la zona del reloj.
+5. Llegan notificaciones al conectar: se muestran sin retraso.
+6. Opcional: cambia la zona del iPhone (Ajustes › General › Fecha y hora) y reconecta. La línea refleja la zona nueva y quizá `last adjust: zone change`.

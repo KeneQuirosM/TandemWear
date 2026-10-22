@@ -13,6 +13,7 @@ import android.util.Log
 import app.tandemwear.watch.ams.AmsProtocol
 import app.tandemwear.watch.battery.BatteryProtocol
 import app.tandemwear.watch.data.BatteryModeStore
+import app.tandemwear.watch.iphonetime.CurrentTimeProtocol
 import app.tandemwear.watch.ams.RemoteCommand
 import app.tandemwear.watch.ble.GattOperationQueue.OpKey
 import app.tandemwear.watch.diag.DiagnosticsLog
@@ -81,11 +82,16 @@ class BleConnectionManager(
         private val GAP_SERVICE_UUID: UUID = UUID.fromString("00001800-0000-1000-8000-00805f9b34fb")
         private val GAP_DEVICE_NAME_UUID: UUID = UUID.fromString("00002A00-0000-1000-8000-00805f9b34fb")
 
+        private val TIME_CHARACTERISTICS = setOf(
+            CurrentTimeProtocol.CURRENT_TIME_UUID, CurrentTimeProtocol.LOCAL_TIME_INFO_UUID
+        )
+
         /** Names for the "service UUIDs" diagnostics line. */
         private val SERVICE_NAMES: Map<UUID, String> = mapOf(
             AncsConstants.ANCS_SERVICE_UUID to "ANCS",
             AncsConstants.AMS_SERVICE_UUID to "AMS",
             BatteryProtocol.SERVICE_UUID to "Battery",
+            CurrentTimeProtocol.SERVICE_UUID to "CurrentTime",
             GAP_SERVICE_UUID to "GAP"
         )
     }
@@ -117,6 +123,15 @@ class BleConnectionManager(
     private val _batteryLevel = MutableStateFlow<Int?>(null)
     /** The iPhone's battery level (Phase 5.2); null when unknown. Never affects the ANCS session. */
     val batteryLevel: StateFlow<Int?> = _batteryLevel.asStateFlow()
+
+    /** B2 evaluation (step 1): logs the iPhone's time, zone and DST once per session. */
+    private val iphoneTimeProbe: IphoneTimeProbe by lazy {
+        IphoneTimeProbe(
+            scope, operations,
+            ancsRequestsPending = { ancsRequestsPending() },
+            lastAncsActivityMs = { lastAncsActivityMs }
+        )
+    }
 
     private val batteryClient: BatteryClient by lazy {
         BatteryClient(
@@ -277,6 +292,7 @@ class BleConnectionManager(
                 operations.onComplete(OpKey.ReadCharacteristic(characteristic.uuid), ok)
                 if (ok && characteristic.uuid == AmsProtocol.ENTITY_ATTRIBUTE_UUID) amsClient.onEntityAttributeRead(value)
                 if (ok && characteristic.uuid == BatteryProtocol.LEVEL_UUID) batteryClient.onLevelValue(value)
+                if (ok && characteristic.uuid in TIME_CHARACTERISTICS) iphoneTimeProbe.onRead(characteristic.uuid, value)
                 if (ok) onCharacteristicRead(characteristic.uuid, value)
             }
         },
@@ -511,6 +527,8 @@ class BleConnectionManager(
             readGapDeviceName(g)
             // Music (Phase 3): starts later, only when ANCS is idle; its failures stay inside AmsClient
             amsClient.onAncsSessionActive(g, currentSessionId)
+            // iPhone time (B2 evaluation): log only, read at 3 s, same isolation
+            iphoneTimeProbe.onAncsSessionActive(g)
             // Battery (Phase 5.2): after AMS, same isolation; its failures stay inside BatteryClient
             batteryClient.onAncsSessionActive(g)
         } finally {
@@ -723,6 +741,7 @@ class BleConnectionManager(
     private fun clearSession() {
         amsClient.onSessionEnded()
         batteryClient.onSessionEnded()
+        iphoneTimeProbe.onSessionEnded()
         if (linkUp) recordLinkStats()
         linkUp = false
         operations.clear()
