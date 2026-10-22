@@ -253,3 +253,15 @@ Con unos días de uso normal, este contador dice si la hipótesis A se sostiene:
 **Por qué esperamos.** B4 parte de la hipótesis A. Si fuera falsa, quitaría al reloj la única forma de reconectar cuando el iPhone no se conecta por el anuncio, como pasó toda esa noche. Antes queremos varios días de datos de uso normal con el contador de B1: cuántos enlaces inicia cada lado y cuántos traen ANCS. B3 depende de cómo quede B4, así que van juntos.
 
 Mientras tanto, B5 solo **muestra** el estado «Conectado al iPhone, sin notificaciones», sin cambiar la lógica de reconexión.
+
+### Datos del volcado de Bluetooth del 21-10 (para B3 y B4; pistas, no conclusiones)
+
+Fuente: `dumpsys bluetooth_manager` a las 19:17, con el reloj puesto. El historial del volcado empieza el 20-10 a las 20:47.
+
+- **Enlace clásico (BR/EDR) al iPhone.** Solo hay **7 cortes clásicos** en todo el historial; 6 con `reason=19` (0x13, *Remote User Terminated*: los cerró el iPhone) y 1 con `reason=8` (*supervision timeout*: fuera de alcance o radio dormida). **No veo cortes cada ~2 min** en este volcado; puede que estén en otro registro o fuera del historial. Si los ves en otra parte, pásame esa sección.
+  - Último corte: 18:48:33. El iPhone cerró a la vez el enlace LE y el clásico. El clásico volvió a las 18:49:08, **iniciado por el iPhone**, y sigue conectado (HFP cliente `Connected`) hasta el volcado.
+- **Cortes de LE** (lo que usa ANCS): casi todos `reason=8` entre las 13:23 y las 17:03 (fuera de alcance o sueño), y algunos `reason=19` (el iPhone corta).
+- **Cada reemparejamiento dejó un vínculo nuevo.** En la base del reloj hay 9 entradas; seis son direcciones LE del iPhone, y quedan **dos vínculos «iPhone»** con direcciones públicas distintas (`…C6:84`, la de siempre, y `…84:D5`, desde las 18:32). Una dirección pública de iPhone no cambia: **¿son dos iPhones?** Hay que aclararlo antes de B3/B4, porque `PairedPhoneStore` guarda solo uno.
+- **Al vincular por LE, Android abre también el clásico** (18:33:01, «Consolidate 84:d5 ⇔ 68:2b», SDP, RFCOMM) y el sistema activa HFP cliente con política 100. Ese enlace clásico existe aunque TandemWear no lo pida. Cuenta como «enlace con el iPhone» en los datos de B1, pero no lleva ANCS.
+
+Qué cambia para la decisión: B4 («cortar enlaces sin ANCS») no debe tocar el enlace clásico/HFP. No es nuestro y cortarlo no ayuda a ANCS. Los contadores de B1 cuentan solo enlaces GATT de TandemWear, así que esto no los altera.

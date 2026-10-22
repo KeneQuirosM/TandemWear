@@ -27,6 +27,7 @@ Qué cambió: el botón **Contestar** de la notificación de llamada (CallStyle)
 
    Debe aparecer `ancs: action on a notification from an ended session — dismissed locally only` y **no** debe contestarse otra notificación del iPhone.
 6. Durante una llamada con Spotify sonando, la música no se ve afectada.
+7. Después de contestar desde el reloj, la conversación se oye en el **iPhone** sin cortes. El reloj está conectado al iPhone como manos libres (HFP), así que iOS podría intentar mandar el audio al reloj; ver `docs/AUDIO_LLAMADAS.md`.
 
 **Nota:** el receptor de las acciones (`NotificationActionReceiver`) no tiene intent-filter. Por eso las acciones que lo llaman solo con el paquete (Rechazar de la llamada, y los botones de las notificaciones normales) probablemente no le llegan. El nuevo Contestar lo llama de forma explícita. No toqué Rechazar, como pediste; si la prueba 4 lo confirma, lo corrijo en un commit aparte.
 
