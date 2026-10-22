@@ -996,6 +996,7 @@ class AncsService : Service() {
             putExtra(IncomingCallActivity.EXTRA_CALLER_NAME, callerName)
             putExtra(IncomingCallActivity.EXTRA_NOTIFICATION_UID, notification.uid)
             putExtra(IncomingCallActivity.EXTRA_APP_NAME, appName)
+            putExtra(IncomingCallActivity.EXTRA_SESSION_ID, idRegistry.sessionId)
         }
         try {
             startActivity(callIntent)
@@ -1009,8 +1010,17 @@ class AncsService : Service() {
             this, 0, callIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val answerPendingIntent = PendingIntent.getActivity(
-            this, 1, callIntent,
+        // Answer sends the ANCS positive action itself (bound to this session), like the call
+        // screen's Answer; the iPhone's MODIFIED event then shows "Active on iPhone".
+        // Explicit component: the receiver has no intent-filter, so a package-only intent misses it
+        val answerPendingIntent = PendingIntent.getBroadcast(
+            this, 1,
+            Intent(this, NotificationActionReceiver::class.java).apply {
+                action = NotificationActionReceiver.ACTION_POSITIVE
+                putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_UID, notification.uid)
+                putExtra(NotificationActionReceiver.EXTRA_SESSION_ID, idRegistry.sessionId)
+                putExtra(NotificationActionReceiver.EXTRA_ANDROID_ID, NOTIFICATION_ID_CALL)
+            },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val declinePendingIntent = PendingIntent.getBroadcast(
@@ -1047,6 +1057,10 @@ class AncsService : Service() {
     private fun performNotificationAction(uid: Long, actionId: Int, sessionId: Long, androidId: Int) {
         // Cancel vibration (in case this is a call answer/decline)
         vibrator.cancel()
+        if (uid == activeCallUid) {
+            val what = if (actionId == AncsConstants.ACTION_POSITIVE) "answer" else "decline"
+            DiagnosticsLog.log("call: $what uid=$uid session=${if (sessionId == NotificationIdRegistry.NO_SESSION) "none" else "bound"}")
+        }
 
         val stale = sessionId != NotificationIdRegistry.NO_SESSION && !idRegistry.isCurrent(sessionId)
         if (stale) {

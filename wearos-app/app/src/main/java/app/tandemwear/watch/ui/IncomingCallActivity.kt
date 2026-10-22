@@ -37,6 +37,7 @@ import androidx.wear.compose.material3.Text
 import app.tandemwear.watch.R
 import app.tandemwear.watch.ancs.AncsService
 import app.tandemwear.watch.ancs.NotificationActionReceiver
+import app.tandemwear.watch.ancs.NotificationIdRegistry
 import app.tandemwear.watch.ble.AncsConstants
 import app.tandemwear.watch.ui.theme.TandemColors
 import app.tandemwear.watch.ui.theme.TandemType
@@ -53,6 +54,8 @@ class IncomingCallActivity : ComponentActivity() {
         const val EXTRA_CALLER_NAME = "caller_name"
         const val EXTRA_NOTIFICATION_UID = "notification_uid"
         const val EXTRA_APP_NAME = "app_name"
+        /** ANCS session of the call's UID; Answer is sent only if that session is still current. */
+        const val EXTRA_SESSION_ID = "ancs_session_id"
         const val ACTION_CALL_ENDED = "app.tandemwear.watch.CALL_ENDED"
         const val ACTION_CALL_ANSWERED = "app.tandemwear.watch.CALL_ANSWERED"
         const val ACTION_CALLER_NAME_UPDATED = "app.tandemwear.watch.CALLER_NAME_UPDATED"
@@ -63,6 +66,7 @@ class IncomingCallActivity : ComponentActivity() {
         private const val ACTIVE_CALL_DISMISS_MS = 5_000L
     }
 
+    private var sessionId: Long = NotificationIdRegistry.NO_SESSION
     private var notificationUid: Long = -1
     private var callerNameState = mutableStateOf("")
     /** true = call was answered on iPhone, show "Active on iPhone" UI */
@@ -106,6 +110,7 @@ class IncomingCallActivity : ComponentActivity() {
         callerNameState.value = intent.getStringExtra(EXTRA_CALLER_NAME) ?: getString(R.string.call_unknown_caller)
         val appName = intent.getStringExtra(EXTRA_APP_NAME) ?: getString(R.string.call_default_app)
         notificationUid = intent.getLongExtra(EXTRA_NOTIFICATION_UID, -1)
+        sessionId = intent.getLongExtra(EXTRA_SESSION_ID, NotificationIdRegistry.NO_SESSION)
 
         val filter = IntentFilter().apply {
             addAction(ACTION_CALL_ENDED)
@@ -132,7 +137,7 @@ class IncomingCallActivity : ComponentActivity() {
                         callerName = callerName,
                         appName = appName,
                         onAnswer = {
-                            performAction(AncsConstants.ACTION_POSITIVE)
+                            performAction(AncsConstants.ACTION_POSITIVE, sessionId)
                             finish()
                         },
                         onDecline = {
@@ -153,12 +158,14 @@ class IncomingCallActivity : ComponentActivity() {
         } catch (_: IllegalArgumentException) { }
     }
 
-    private fun performAction(actionId: Int) {
+    /** Decline keeps sending without a session (its behaviour is verified on the watch). */
+    private fun performAction(actionId: Int, session: Long = NotificationIdRegistry.NO_SESSION) {
         if (notificationUid == -1L) return
         val intent = Intent(this, AncsService::class.java).apply {
             action = AncsService.ACTION_PERFORM_NOTIFICATION_ACTION
             putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_UID, notificationUid)
             putExtra(AncsService.EXTRA_ACTION_ID, actionId)
+            putExtra(NotificationActionReceiver.EXTRA_SESSION_ID, session)
         }
         startService(intent)
     }
