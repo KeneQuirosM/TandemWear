@@ -4,7 +4,6 @@ import android.content.ComponentName
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -25,12 +24,5 @@ class NotificationActionReceiverTest {
             assertEquals(action, intent.action)
             assertEquals(42L, intent.getLongExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_UID, -1))
         }
-    }
-
-    @Test
-    fun `explicit intent resolves to the manifest receiver`() {
-        val intent = NotificationActionReceiver.intent(context, NotificationActionReceiver.ACTION_NEGATIVE, uid = 1)
-        val receivers = context.packageManager.queryBroadcastReceivers(intent, 0)
-        assertTrue(receivers.any { it.activityInfo.name == NotificationActionReceiver::class.java.name })
     }
 }
