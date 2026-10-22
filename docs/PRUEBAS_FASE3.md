@@ -34,6 +34,12 @@ Todo está **por verificar en el reloj**. CI solo comprueba que compila y que pa
 7. Cierra Spotify en el iPhone (deslizándolo fuera en el selector de apps): el reproductor pasa a «Nada suena» y la tarjeta desaparece de Inicio. **Por verificar:** si iOS avisa este cambio.
 8. Cambia a la app Música del iPhone: debe mostrar «Música» y su canción.
 9. Prueba con TalkBack y con la fuente al máximo: cada botón se anuncia y nada se corta.
+10. **Borde redondo**, con el tamaño de fuente normal:
+    - la fila de volumen se ve completa (− porcentaje +), sin medios círculos y con el «%» lejos del borde;
+    - no hace falta desplazarse;
+    - si el título es largo, se corta con «…».
+
+    Con fuente grande, la pantalla puede desplazarse, pero abajo aparece una flecha ⌄ («Hay más abajo») y la barra de desplazamiento. Si en tu reloj el porcentaje no aparece entre los botones, dímelo: significa que la pantalla mide menos de 225 dp. En ese caso TalkBack lo lee con cada botón de volumen.
 
 ## 3. Tile
 
