@@ -15,6 +15,14 @@ Estado: **cerrado como no viable** (decisión del 22-10-2026). No hay código y 
 
   Encaja con `mAudioRouteAllowed=false`. ¿Hiciste algo a esas horas, como una llamada de prueba o cambiar la salida de audio en el iPhone?
 
+## Perfiles del reloj (`getprop`, 22-10)
+
+Activos: `a2dp.source`, `hfp.ag`, `hfp.hf`, `avrcp.target`, `hid.host`, `hid.device`, `gatt`; `ro.bluetooth.hfp.ver=1.6`. Desactivados: `a2dp.sink`, `avrcp.controller`, `pbap`, `map`, `pan`, `bap`, `hap`, entre otros.
+
+- El reloj **sí** puede ser manos libres (`hfp.hf`), pero el sistema no enruta su audio (abajo).
+- Sin `a2dp.sink` tampoco puede *recibir* música del iPhone por Bluetooth clásico: la música sigue siendo solo control por AMS.
+- HFP 1.6 admite voz de banda ancha (mSBC), pero las conexiones SCO del volcado usaron CVSD.
+
 ## (1) Qué significa el valor 2
 
 `BluetoothSinkAudioPolicy.POLICY_NOT_ALLOWED = 2`: «Audio is not preferred by HF device for the policy». Las otras constantes son `POLICY_UNCONFIGURED = 0` y `POLICY_ALLOWED = 1`. Los tres campos significan:
